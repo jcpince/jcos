@@ -1,0 +1,80 @@
+ENTRY (loader32)
+OUTPUT_FORMAT(elf64-x86-64)
+
+/*KERNEL_VIRT_ADDR = 0xffffffff80100000;*/
+KERNEL_VIRT_ADDR = 0x0000000000100000;
+KERNEL_PHYS_ADDR = 0x0000000000100000;
+KERNEL_BASE_ADDR = (KERNEL_VIRT_ADDR - KERNEL_PHYS_ADDR);
+
+SECTIONS
+{
+    . = KERNEL_PHYS_ADDR;
+    
+    .bootstrap ALIGN(4096) :
+    {
+        obj/init/bootstrap.o *(.header)
+        obj/init/bootstrap.o *(.text)
+        obj/init/bootstrap.o *(.data)
+        obj/init/bootstrap.o *(.bss)
+        
+        . = ALIGN(4096);
+        paging_tables_start = .;
+        . = paging_tables_start + 36798;
+        paging_tables_end = .;
+    }
+
+    . += KERNEL_BASE_ADDR;
+
+    .text ALIGN(4096) : AT(ADDR(.text) - KERNEL_BASE_ADDR)
+    {
+        _code = .;
+        *(EXCLUDE_FILE(*obj/init/bootstrap.o) .text)
+        *(.text*)
+    }
+
+    .rodata ALIGN(4096) : AT(ADDR(.rodata) - KERNEL_BASE_ADDR)
+    {
+        *(.rodata*)
+        
+        start_ctors = .;
+        *(.ctor*)
+        end_ctors = .;
+
+        start_dtors = .;
+        *(.dtor*)
+        end_dtors = .;
+
+        *(EXCLUDE_FILE(*obj/init/bootstrap.o) .rodata*)
+        *(EXCLUDE_FILE(*obj/init/bootstrap.o) .gnu.linkonce.r*)
+    }
+
+   .data ALIGN(4096) : AT(ADDR(.data) - KERNEL_BASE_ADDR)
+   {
+        _data = .;
+        *(.data*)
+        *(EXCLUDE_FILE(*obj/init/bootstrap.o) .data)
+   }
+
+   .bss ALIGN(4096) : AT(ADDR(.bss) - KERNEL_BASE_ADDR)
+   {
+       _bss = .;
+        *(.bss*)
+        *(EXCLUDE_FILE(*obj/init/bootstrap.o) .bss)
+
+       /*
+        * You usually need to include generated COMMON symbols
+        * under kernel BSS section or use gcc's -fno-common
+        */
+
+        *(COMMON)
+   }
+
+   _end = .;
+
+   /DISCARD/ :
+   {
+        *(.comment)
+        *(.eh_frame)
+   }
+}
+
