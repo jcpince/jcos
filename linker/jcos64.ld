@@ -64,6 +64,7 @@ SECTIONS
 	. = ALIGN(CTORS_DTORS_ALIGN);
 	start_ctors = .;
 	*(.ctor*)
+	*(.init_array*)
 	end_ctors = .;
 
 	. = ALIGN(CTORS_DTORS_ALIGN);
@@ -111,10 +112,9 @@ SECTIONS
 	}
 }
 
-/* 
+/*
  *	Virtual and physical symbols translated
  */
 virt_pml4_start = phys_pml4_start + KERNEL_PHYS_TO_VIRT;
 virt_pt_end = phys_pt_end + KERNEL_PHYS_TO_VIRT;
 stack_phys = stack - KERNEL_PHYS_TO_VIRT;
-
