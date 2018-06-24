@@ -3,6 +3,7 @@
 #include <kernel/KMemoryManager.hpp>
 #include <init/KMultibootManagerFactory.hpp>
 #include <KIInterruptManager.hpp>
+#include <drivers/serial/KSerial.hpp>
 
 #include <stdio.h>
 #include <stdint.h>
@@ -93,43 +94,12 @@ extern "C" void int3_callback(void)
 	printk("Interrupt 3 caught\n");
 }
 
-#define PORT 0x3f8   /* COM1 */
-
-extern "C" void init_serial() {
-   outportb(PORT + 1, 0x00);    // Disable all interrupts
-   outportb(PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-   outportb(PORT + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
-   outportb(PORT + 1, 0x00);    //                  (hi byte)
-   outportb(PORT + 3, 0x03);    // 8 bits, no parity, one stop bit
-   outportb(PORT + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-   outportb(PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-}
-
-extern "C" int serial_received() {
-   return inportb(PORT + 5) & 1;
-}
-
-extern "C" char read_serial() {
-   while (serial_received() == 0);
-
-   return inportb(PORT);
-}
-
-extern "C" int is_transmit_empty() {
-   return inportb(PORT + 5) & 0x20;
-}
-
-extern "C" void write_serial(char a) {
-   while (is_transmit_empty() == 0);
-
-   outportb(PORT,a);
-}
-
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
 	Myclass c;
 	uint64_t count = 0;
 	char tmpbuf[64];
+    KSerial ttyS0(0);
 
 	kstd::kout.SetTextColour(BLACK);
 	kstd::kout.SetBackColour(WHITE);
@@ -227,14 +197,12 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
 	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
 
-    init_serial();
-
     int cd = 100;
     while (cd-- > 0)
     {
-        char ch = read_serial();
+        char ch = ttyS0.read();
         kstd::kout.printf("received %c\n", ch);
-        write_serial(ch+1);
+        ttyS0.write(ch+1);
     }
 
 	sleep(5);

@@ -1,7 +1,7 @@
 include ${ROOT}/build/builddefs.mk
 include ${ROOT}/build/buildflags.mk
 
-SUBDIRS = dummy
+SUBDIRS = serial dummy
 
 OBJDIR = ${ROOT}/obj/drivers
 

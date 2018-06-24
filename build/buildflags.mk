@@ -7,9 +7,8 @@ CFLAGS +=	-fno-stack-protector -ffreestanding -mcmodel=small -mno-red-zone
 CFLAGS +=	-mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow -fPIC
 CFLAGS +=	-Wno-write-strings -fexceptions #-fno-rtti -fno-exceptions
 
-CXXFLAGS =	${CFLAGS}
+CXXFLAGS =	${CFLAGS} -std=c++11
 
 LDFLAGS =	${DEBUGFLAGS} -nodefaultlibs -nostdlib -nostartfiles
 
 INCLUDES =	-nostdinc --sysroot ${ROOT} -isystem=/include
-
