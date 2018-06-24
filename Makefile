@@ -50,6 +50,9 @@ ${ISO}: ${ELF} ${GRUBCONF}
 qemu-cd-test: ${ISO}
 	qemu-system-x86_64 -cdrom ${ISO} -m 512
 
+qemu-cd-serial: ${ISO}
+	qemu-system-x86_64 -cdrom ${ISO} -m 512 -serial stdio
+
 bochs-cd-test: ${ISO}
 	bochs -f res/bochs.cfg
 

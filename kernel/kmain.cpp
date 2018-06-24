@@ -93,18 +93,50 @@ extern "C" void int3_callback(void)
 	printk("Interrupt 3 caught\n");
 }
 
+#define PORT 0x3f8   /* COM1 */
+
+extern "C" void init_serial() {
+   outportb(PORT + 1, 0x00);    // Disable all interrupts
+   outportb(PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
+   outportb(PORT + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
+   outportb(PORT + 1, 0x00);    //                  (hi byte)
+   outportb(PORT + 3, 0x03);    // 8 bits, no parity, one stop bit
+   outportb(PORT + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
+   outportb(PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+}
+
+extern "C" int serial_received() {
+   return inportb(PORT + 5) & 1;
+}
+
+extern "C" char read_serial() {
+   while (serial_received() == 0);
+
+   return inportb(PORT);
+}
+
+extern "C" int is_transmit_empty() {
+   return inportb(PORT + 5) & 0x20;
+}
+
+extern "C" void write_serial(char a) {
+   while (is_transmit_empty() == 0);
+
+   outportb(PORT,a);
+}
+
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
 	Myclass c;
 	uint64_t count = 0;
 	char tmpbuf[64];
-	
+
 	kstd::kout.SetTextColour(BLACK);
 	kstd::kout.SetBackColour(WHITE);
 	kstd::kout.clear();
-	
+
 	//while(dbg);
-	
+
 	KIMultibootManager *mbmgr = kmmf.getMultibootMgr(bootloader_magic, (addr_t)mbi);
 	if (!mbmgr)
 	{
@@ -133,16 +165,16 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		}
 		char *bootloadername = mbmgr->getBootloaderName();
 		char *commandline = mbmgr->getCommandLine();
-	
+
 		kstd::kout << "Bootloader name: " << bootloadername << kstd::endl;
 		kstd::kout << "Command line: " << commandline << kstd::endl;
-	
+
 		free(bootloadername);
 		free(commandline);
 		free(regions);
 		delete mbmgr;
 	}
-	
+
 	try
 	{
 		c.test_throw();
@@ -163,7 +195,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->add_handler(2, myisr2);
 	kim->add_handler(3, myisr3);
 	kim->add_handler(14, page_fault_isr);
-	
+
 	kstd::kout << _L("done, enable interrupts...") << kstd::endl;
 	kim->enableall();
 	kstd::kout << _L("done, generates interrupt 0") << kstd::endl;
@@ -174,7 +206,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->generate_interrupt(2);
 	kstd::kout << _L("done, generates interrupt 3") << kstd::endl;
 	kim->generate_interrupt(3);
-	
+
 	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
 	uint32_t flags = kim->savei();
 	kim->disablei();
@@ -187,14 +219,24 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->add_handler(9, kbdisr);
 	kim->restaurei(flags);
 	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
-	
+
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
-	
-	
+
+
 	kstd::kout.printf("sizeof(unsigned int): %d\n", sizeof(unsigned int));
 	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
 	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
-	
+
+    init_serial();
+
+    int cd = 100;
+    while (cd-- > 0)
+    {
+        char ch = read_serial();
+        kstd::kout.printf("received %c\n", ch);
+        write_serial(ch+1);
+    }
+
 	sleep(5);
 	int *ptr = (int *)0xFFFFFFFFA0000000;
 	*ptr = 7;
@@ -203,4 +245,3 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	//kstd::kout << _L("That's all folks!!") << kstd::endl;
 	while(1);
 }
-
