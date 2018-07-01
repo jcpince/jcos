@@ -118,6 +118,21 @@ myisr3:
 	sti
 	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
 
+.extern serial_callback
+.globl serial_isr
+serial_isr:
+	cli
+	pusha64
+	install_kds64
+
+	movabsq   $serial_callback, %rax
+	call    *%rax
+
+	restaure_origds
+	popa64
+	sti
+	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
+
 .extern page_fault_callback
 .globl page_fault_isr
 page_fault_isr:

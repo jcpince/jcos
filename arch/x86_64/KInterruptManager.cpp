@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <asmf.H>
 
 KInterruptManager::KInterruptManager()
 {
@@ -31,7 +32,25 @@ bool KInterruptManager::disable_interrupt(uint32_t interrupt __attribute__((__un
 	return false;
 }
 
-bool KInterruptManager::add_handler(uint32_t interrupt, kinterrupt_handler_t handler)
+bool KInterruptManager::enable_irq(uint32_t irq_number __attribute__((__unused__)))
+{
+    if (irq_number > LEGACY_MAX_IRQ)
+        return false;
+    uint16_t imask = inportb(PIC0_PORTB_NUMBER);
+    outportb(PIC0_PORTB_NUMBER, imask & ~(1 << irq_number));
+    return true;
+}
+
+bool KInterruptManager::disable_irq(uint32_t irq_number __attribute__((__unused__)))
+{
+    if (irq_number > LEGACY_MAX_IRQ)
+        return false;
+    uint16_t imask = inportb(PIC0_PORTB_NUMBER);
+    outportb(PIC0_PORTB_NUMBER, imask | (1 << irq_number));
+    return true;
+}
+
+bool KInterruptManager::add_interrupt_handler(uint32_t interrupt, kinterrupt_handler_t handler)
 {
 	if (interrupt >= KIDT_NBVECTORS) return false;
 
@@ -50,10 +69,41 @@ bool KInterruptManager::add_handler(uint32_t interrupt, kinterrupt_handler_t han
 	return true;
 }
 
-bool KInterruptManager::remove_handler(uint32_t interrupt __attribute__((__unused__)),
+#include <stdio.h>
+
+bool KInterruptManager::add_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler)
+{
+	uint32_t interrupt = irq2interrupt(irq_number);
+    if (interrupt == INVALID_INTERRUPT)
+        return false;
+
+    uint32_t flags = savei();
+    disablei();
+    add_interrupt_handler(interrupt, handler);
+    enable_irq(irq_number);
+	restaurei(flags);
+	return true;
+}
+
+bool KInterruptManager::remove_interrupt_handler(uint32_t interrupt __attribute__((__unused__)),
 	kinterrupt_handler_t handler __attribute__((__unused__)))
 {
 	struct kidt_entry *entry = &((struct kidt_entry *)vector_address)[interrupt];
 	entry->presence = 0;
 	return true;
+}
+
+bool KInterruptManager::remove_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler)
+{
+	uint32_t interrupt = irq2interrupt(irq_number);
+    if (interrupt == INVALID_INTERRUPT)
+        return false;
+
+    bool result;
+    uint32_t flags = savei();
+    result = remove_interrupt_handler(interrupt, handler);
+    if (result)
+        disable_irq(irq_number);
+    restaurei(flags);
+    return result;
 }

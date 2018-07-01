@@ -32,11 +32,16 @@ public:
 	virtual void enableall() = 0;
 	virtual void disableall() = 0;
 	virtual bool install_vector() = 0;
+	virtual bool enable_irq(uint32_t irq_number) = 0;
+	virtual bool disable_irq(uint32_t irq_number) = 0;
 	virtual bool enable_interrupt(uint32_t interrupt) = 0;
 	virtual bool disable_interrupt(uint32_t interrupt) = 0;
 	virtual bool generate_interrupt(uint32_t interrupt) = 0;
-	virtual bool add_handler(uint32_t interrupt, kinterrupt_handler_t handler) = 0;
-	virtual bool remove_handler(uint32_t interrupt, kinterrupt_handler_t handler) = 0;
+	virtual bool add_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler) = 0;
+	virtual bool add_interrupt_handler(uint32_t interrupt, kinterrupt_handler_t handler) = 0;
+	virtual bool remove_interrupt_handler(uint32_t interrupt, kinterrupt_handler_t handler) = 0;
+	virtual bool remove_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler) = 0;
+    virtual uint32_t irq2interrupt(uint32_t irq_number) = 0;
 };
 
 extern KIInterruptManager *kim;

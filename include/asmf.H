@@ -1,52 +1,54 @@
 #ifndef _asmf_H_
 #define _asmf_H_
 
+#include <stdint.h>
+
 // Assembly routines //
 //-------------------//
 
-inline static unsigned char inportb(int port)
+inline static uint8_t inportb(uint16_t port)
 {
 	register unsigned char r;
-   
+
    	asm volatile
-	( 
-		"inb %%dx, %%al\n\t" 
-		: "=a" (r) 
+	(
+		"inb %%dx, %%al\n\t"
+		: "=a" (r)
 		: "d" (port)
 	);
 
    	return (r);
 }
 
-inline static void outportb(int port, unsigned char data)
+inline static void outportb(uint16_t port, uint8_t data)
 {
 	asm volatile
 	(
-		"outb %%al, %%dx\n\t" 
+		"outb %%al, %%dx\n\t"
 		:
 		: "a" (data), "d" (port)
 	);
 }
 
-inline static unsigned short inportw(int port)
+inline static uint16_t inportw(uint16_t port)
 {
 	register unsigned short r;
-   
+
    	asm volatile
 	(
-		"inw %%dx, %%ax\n\t" 
-		: "=a" (r) 
+		"inw %%dx, %%ax\n\t"
+		: "=a" (r)
 		: "d" (port)
 	);
 
    	return (r);
 }
 
-inline static void outportw(int port, unsigned short data)
+inline static void outportw(uint16_t port, uint16_t data)
 {
 	asm volatile
 	(
-		"outw %%ax, %%dx\n\t" 
+		"outw %%ax, %%dx\n\t"
 		:
 		: "a" (data), "d" (port)
 	);
@@ -56,7 +58,7 @@ inline static void outportw(int port, unsigned short data)
 
 inline static void enable()
 {
-	asm volatile 
+	asm volatile
 	(
 		"sti"
 		:
@@ -99,7 +101,7 @@ inline static void halt()
 
 inline static void pokew(unsigned short selector, unsigned long offset, unsigned short value)
 {
-	asm volatile 
+	asm volatile
 	(
 		"movw %w0,%%fs \n"
 		"	.byte 0x64 \n"

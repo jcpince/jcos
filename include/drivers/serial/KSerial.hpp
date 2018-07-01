@@ -6,17 +6,17 @@
 class KSerial
 {
 private:
-    uint32_t portid;
+    uint16_t portid;
 protected:
     bool is_byte_available();
     bool is_write_done();
 
 public:
-	KSerial(uint32_t portid);
+	KSerial(uint16_t portid);
 	~KSerial();
 
-	uint8_t read();
-    void write(uint8_t byte);
+	uint8_t readb();
+    void writeb(uint8_t byte);
 };
 
 #endif /* __KSERIAL_HPP__ */

@@ -10,11 +10,13 @@
 #include <unistd.h>
 
 int dbg = 1;
+uint32_t serial_interrupts = 0;
 
 extern "C" void myisr0();
 extern "C" void myisr1();
 extern "C" void myisr2();
 extern "C" void myisr3();
+extern "C" void serial_isr();
 extern "C" void kbdisr();
 extern "C" void page_fault_isr();
 /*
@@ -94,8 +96,15 @@ extern "C" void int3_callback(void)
 	printk("Interrupt 3 caught\n");
 }
 
+extern "C" void serial_callback(void)
+{
+	serial_interrupts++;
+}
+
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
+    /* Shall be called early on to allow interrupts */
+    kim->install_vector();
 	Myclass c;
 	uint64_t count = 0;
     KSerial ttyS0(0);
@@ -158,12 +167,11 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	}
 
 	kstd::kout << _L("setup the idt and waits for 2s") << kstd::endl;
-	kim->install_vector();
-	kim->add_handler(0, myisr0);
-	kim->add_handler(1, myisr1);
-	kim->add_handler(2, myisr2);
-	kim->add_handler(3, myisr3);
-	kim->add_handler(14, page_fault_isr);
+	kim->add_interrupt_handler(0, myisr0);
+	kim->add_interrupt_handler(1, myisr1);
+	kim->add_interrupt_handler(2, myisr2);
+	kim->add_interrupt_handler(3, myisr3);
+	kim->add_interrupt_handler(14, page_fault_isr);
 
 	kstd::kout << _L("done, enable interrupts...") << kstd::endl;
 	kim->enableall();
@@ -177,16 +185,11 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->generate_interrupt(3);
 
 	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
-	uint32_t flags = kim->savei();
-	kim->disablei();
-	__asm__ volatile (
-		"mov $0xff, %al \n"
-		"out %al, $0xA1 \n"
-		"mov $0xfd, %al \n"
-		"out %al, $0x21 \n"
-	);
-	kim->add_handler(9, kbdisr);
-	kim->restaurei(flags);
+    kim->add_irq_handler(1, kbdisr);
+	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
+
+	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
+    kim->add_irq_handler(4, serial_isr);
 	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
 
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
@@ -196,15 +199,18 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
 	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
 
-    int cd = 100;
+    /*int cd = 100;
     while (cd-- > 0)
     {
         char ch = ttyS0.read();
-        kstd::kout.printf("received %c\n", ch);
+        //kstd::kout.printf("received %c\n", ch);
+        printk("received %c\n", ch);
         ttyS0.write(ch+1);
-    }
+    }*/
 
 	sleep(5);
+	kstd::kout << _L("serial_interrupts during the 5 seconds: ") << serial_interrupts << kstd::endl;
+
 	int *ptr = (int *)0xFFFFFFFFA0000000;
 	*ptr = 7;
 	int test = *ptr;

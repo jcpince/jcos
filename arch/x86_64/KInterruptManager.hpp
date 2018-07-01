@@ -3,24 +3,34 @@
 
 #include <KIInterruptManager.hpp>
 
-/* 
+/*
 	TODO: Include this from a unique header
 */
-#define KSEG_CS		0x8
-#define KSEG_DS		0x8
-#define PAGESZ		0x1000
-#define PAGEMASK	(~(PAGESZ-1))
+#define KSEG_CS		            (0x8)
+#define KSEG_DS		            (0x8)
+#define PAGESZ                  (0x1000)
+#define PAGEMASK                (~(PAGESZ-1))
 
-#define KIDT_ENTRY_IST		0x0	/* default value */
+#define KIDT_ENTRY_IST		    (0x0)	/* default value */
+#define INVALID_INTERRUPT       (0xffffffff)
 
-#define KIDT_ENTRY_TYPE_LDT	0x2	/* LDT */
-#define KIDT_ENTRY_TYPE_TSS64A	0x9	/* 64-bit TSS (Available) */
-#define KIDT_ENTRY_TYPE_TSS64B	0xB	/* 64-bit TSS (Busy) */
-#define KIDT_ENTRY_TYPE_CG64	0xC	/* 64-bit Call Gate */
-#define KIDT_ENTRY_TYPE_IG64	0xE	/* 64-bit Interrupt Gate */
-#define KIDT_ENTRY_TYPE_TG64	0xF	/* 64-bit Trap Gate */
+#define KIDT_ENTRY_TYPE_LDT	    (0x2)	/* LDT */
+#define KIDT_ENTRY_TYPE_TSS64A	(0x9)	/* 64-bit TSS (Available) */
+#define KIDT_ENTRY_TYPE_TSS64B	(0xB)	/* 64-bit TSS (Busy) */
+#define KIDT_ENTRY_TYPE_CG64	(0xC)	/* 64-bit Call Gate */
+#define KIDT_ENTRY_TYPE_IG64	(0xE)	/* 64-bit Interrupt Gate */
+#define KIDT_ENTRY_TYPE_TG64	(0xF)	/* 64-bit Trap Gate */
 
-#define KIDT_NBVECTORS		256
+#define KIDT_NBVECTORS		    (256)
+#define LEGACY_IRQ_LOW          (0x7)
+#define LEGACY_IRQ_LOW_OFFSET   (0x8)
+#define LEGACY_IRQ_HIGH_OFFSET  (0x70)
+#define LEGACY_MAX_IRQ          (0xf)
+
+#define PIC0_PORTA_NUMBER      (0x0020)
+#define PIC0_PORTB_NUMBER      (0x0021)
+#define PIC1_PORTA_NUMBER      (0x00a0)
+#define PIC1_PORTB_NUMBER      (0x00a1)
 
 struct kidt_entry {
 	uint16_t	offset_low;
@@ -49,7 +59,7 @@ private:
 public:
 	KInterruptManager();
 	~KInterruptManager();
-	
+
 	void enablei() {__asm__("sti");}
 	void disablei() {__asm__("cli");}
 	uint32_t savei() {uint64_t flags;__asm__ __volatile__("pushf; pop %0": "=rm"(flags));return (flags)&0xffffffff;}
@@ -75,10 +85,22 @@ public:
 		return true;
 	}
 	bool install_vector();
+	bool enable_irq(uint32_t irq_number);
+	bool disable_irq(uint32_t irq_number);
 	bool enable_interrupt(uint32_t interrupt);
 	bool disable_interrupt(uint32_t interrupt);
-	bool add_handler(uint32_t interrupt, kinterrupt_handler_t handler);
-	bool remove_handler(uint32_t interrupt, kinterrupt_handler_t handler);	
+	bool add_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler);
+	bool add_interrupt_handler(uint32_t interrupt, kinterrupt_handler_t handler);
+	bool remove_interrupt_handler(uint32_t interrupt, kinterrupt_handler_t handler);
+	bool remove_irq_handler(uint32_t irq_number, kinterrupt_handler_t handler);
+    uint32_t irq2interrupt(uint32_t irq_number)
+    {
+        if (irq_number > LEGACY_MAX_IRQ)
+            return INVALID_INTERRUPT;
+        if (irq_number > LEGACY_IRQ_LOW)
+            return irq_number + LEGACY_IRQ_HIGH_OFFSET;
+        return irq_number + LEGACY_IRQ_LOW_OFFSET;
+    }
 };
 
 KIInterruptManager *kim = new KInterruptManager();

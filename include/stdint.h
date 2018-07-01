@@ -3,13 +3,13 @@
 
 #include <sched.h>
 
-typedef unsigned int		uint32_t;
-typedef int				int32_t;
-typedef unsigned short	uint16_t;
-typedef short				int16_t;
-typedef unsigned char		uint8_t;
-typedef char				int8_t;
-typedef unsigned char		bool_t;
+typedef unsigned int		 uint32_t;
+typedef int				     int32_t;
+typedef unsigned short	     uint16_t;
+typedef short				 int16_t;
+typedef unsigned char		 uint8_t;
+typedef char				 int8_t;
+typedef unsigned char		 bool_t;
 
 #ifndef	__cplusplus
 typedef unsigned char		bool;
@@ -43,4 +43,4 @@ typedef uint32_t					addr_t;
 #define MB	(KB*KB)
 #define GB	(MB*KB)
 
-#endif /* __STDINT_H__ */ 
+#endif /* __STDINT_H__ */
