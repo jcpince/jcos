@@ -1,0 +1,7 @@
+--exclude=.git
+--recurse=yes
+--exclude=build*
+
+-f .tags
+
+--fields=+KSn
