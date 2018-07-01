@@ -7,12 +7,13 @@
 enum Colours {BLACK, BLUE, GREEN, CYAN, RED, MAGENTA, BROWN, WHITE, DARKGRAY,
 	BRIGHTBLUE, BRIGHTGREEN, BRIGHTCYAN, PINK, BRIGHTMAGENTA, YELLOW, BRIGHTWHITE};
 
-class Video	//Video class 
+class Video	//Video class
 {
 	public:
 		Video() ;
 		~Video() ;
 		void clear() ;
+		void write(const char *cp) ;
 		void write(char *cp) ;
 		void put(char c) ;
 		void gotoxy(unsigned x, unsigned y) ;
@@ -39,4 +40,3 @@ class Video	//Video class
 
 
 #endif
-

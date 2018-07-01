@@ -51,7 +51,7 @@ kbdisr:
 	install_kds64
 
 	movabsq   $kbd_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64
@@ -66,7 +66,7 @@ myisr0:
 	install_kds64
 
 	movabsq   $int0_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64
@@ -81,7 +81,7 @@ myisr1:
 	install_kds64
 
 	movabsq   $int1_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64
@@ -96,7 +96,7 @@ myisr2:
 	install_kds64
 
 	movabsq   $int2_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64
@@ -111,7 +111,7 @@ myisr3:
 	install_kds64
 
 	movabsq   $int3_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64
@@ -129,7 +129,7 @@ page_fault_isr:
 	movq	0x50(%rsp), %rsi
 	movq	0x48(%rsp), %rdx
 	movabsq   $page_fault_callback, %rax
-	call    %rax
+	call    *%rax
 
 	restaure_origds
 	popa64

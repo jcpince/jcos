@@ -4,12 +4,18 @@
 
 extern "C" void VideoPuts(const char *buffer)
 {
-	kstd::kout << (char *)buffer;
+	kstd::kout << buffer;
 }
 
 namespace kstd
 {
 	KOStream kout;		//KOStream kout
+
+	KOStream& KOStream::operator<<(const char *cp)
+	{
+		write(cp) ;
+		return *this;
+	}
 
 	KOStream& KOStream::operator<<(char *cp)
 	{
@@ -66,7 +72,7 @@ namespace kstd
 		put((char)c1) ;
 		return *this;
 	}
-	
+
 	void KOStream::printf(const char *fmt, ...)
 	{
 		va_list args;
@@ -84,4 +90,3 @@ namespace kstd
 		write((char *)printbuffer) ;
 	}
 }
-

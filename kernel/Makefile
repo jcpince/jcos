@@ -6,7 +6,7 @@ OBJDIR = ${ROOT}/obj/kernel
 
 SRCS =	kmain.cpp \
 	test.cpp \
-	myclass.cpp \
+	MyClass.cpp \
 	stdlib.c \
 	stdio.c \
 	string.c \

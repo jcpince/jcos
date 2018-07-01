@@ -15,7 +15,8 @@ namespace kstd
 	class KOStream : public Video
 	{
 		public:
-			KOStream& operator<<(char *cp);
+			KOStream& operator<<(const char *cp);
+    		KOStream& operator<<(char *cp);
 			KOStream& operator<<(char c);
 			KOStream& operator<<(int32_t i32);
 			KOStream& operator<<(int64_t i64);
@@ -23,7 +24,7 @@ namespace kstd
 			KOStream& operator<<(uint64_t i64);
 			KOStream& operator<<(unsigned char *cq);
 			KOStream& operator<<(unsigned char c1);
-			
+
 			void printf(const char *fmt, ...);
 
 		private:
@@ -33,4 +34,3 @@ namespace kstd
 }
 
 #endif
-

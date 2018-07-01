@@ -71,7 +71,7 @@ struct __cxa_thread_info
 	__cxa_eh_globals globals;
 };
 /**
- * Dependent exception.  This 
+ * Dependent exception.  This
  */
 struct __cxa_dependent_exception
 {
@@ -79,7 +79,7 @@ struct __cxa_dependent_exception
 	void *primaryException;
 #endif
 	std::type_info *exceptionType;
-	void (*exceptionDestructor) (void *); 
+	void (*exceptionDestructor) (void *);
 	unexpected_handler unexpectedHandler;
 	terminate_handler terminateHandler;
 	__cxa_exception *nextException;
@@ -120,7 +120,7 @@ extern "C" std::type_info *__cxa_current_exception_type();
 static const uint64_t exception_class =
 	EXCEPTION_CLASS('G', 'N', 'U', 'C', 'C', '+', '+', '\0');
 /**
- * Class used for dependent exceptions.  
+ * Class used for dependent exceptions.
  */
 static const uint64_t dependent_exception_class =
 	EXCEPTION_CLASS('G', 'N', 'U', 'C', 'C', '+', '+', '\x01');
@@ -130,7 +130,7 @@ static const uint64_t dependent_exception_class =
  * if we change our exception class, to allow this library and libsupc++ to be
  * linked to the same executable and both to interoperate.
  */
-static const uint32_t abi_exception_class = 
+static const uint32_t abi_exception_class =
 	GENERIC_EXCEPTION_CLASS('C', '+', '+', '\0');
 
 static bool isCXXException(uint64_t cls)
@@ -179,12 +179,12 @@ static pthread_key_t eh_key;
  * Cleanup function, allowing foreign exception handlers to correctly destroy
  * this exception if they catch it.
  */
-static void exception_cleanup(_Unwind_Reason_Code /*reason*/, 
+static void exception_cleanup(_Unwind_Reason_Code /*reason*/,
                               struct _Unwind_Exception *ex)
 {
 	__cxa_free_exception((void*)ex);
 }
-static void dependent_exception_cleanup(_Unwind_Reason_Code /*reason*/, 
+static void dependent_exception_cleanup(_Unwind_Reason_Code /*reason*/,
                               struct _Unwind_Exception *ex)
 {
 
@@ -236,6 +236,9 @@ static void init_key(void)
 /**
  * Returns the thread info structure, creating it if it is not already created.
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+
 static __cxa_thread_info *thread_info()
 {
 	pthread_once(&once_control, init_key);
@@ -255,6 +258,7 @@ static __cxa_thread_info *thread_info_fast()
 {
 	return (__cxa_thread_info*)pthread_getspecific(eh_key);
 }
+#pragma GCC diagnostic pop
 /**
  * ABI function returning the __cxa_eh_globals structure.
  */
@@ -387,7 +391,7 @@ static char *alloc_or_die(size_t size)
 	{
 		buffer = emergency_malloc(size);
 		// This is only reached if the allocation is greater than 1KB, and
-		// anyone throwing objects that big really should know better.  
+		// anyone throwing objects that big really should know better.
 		if (0 == buffer)
 		{
 			printk("Out of memory attempting to allocate exception\n");
@@ -529,7 +533,7 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			printk("Fatal error during phase 2 unwinding\n");
 			break;
 		case _URC_END_OF_STACK:
-			printk("Terminating due to uncaught exception %p", 
+			printk("Terminating due to uncaught exception %p",
 					(void*)thrown_exception);
 			thrown_exception = realExceptionFromException(thrown_exception);
 			static const __class_type_info *e_ti =
@@ -552,7 +556,7 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			const char *mangled = thrown_exception->exceptionType->name();
 			int status;
 			demangled = __cxa_demangle(mangled, demangled, &bufferSize, &status);
-			printk(" of type %s\n", 
+			printk(" of type %s\n",
 				status == 0 ? (const char*)demangled : mangled);
 			if (status == 0) { free(demangled); }
 			// Print a back trace if no handler is found.
@@ -599,9 +603,9 @@ extern "C" void __cxa_throw(void *thrown_exception,
 
 	ex->referenceCount = 1;
 	ex->exceptionType = tinfo;
-	
+
 	ex->exceptionDestructor = dest;
-	
+
 	ex->unwindHeader.exception_class = exception_class;
 	ex->unwindHeader.exception_cleanup = exception_cleanup;
 
@@ -677,7 +681,7 @@ extern "C" void __cxa_rethrow()
 
 	// ex->handlerCount will be decremented in __cxa_end_catch in enclosing
 	// catch block
-	
+
 	// Make handler count negative. This will tell __cxa_end_catch that
 	// exception was rethrown and exception object should not be destroyed
 	// when handler count become zero
@@ -699,7 +703,7 @@ static std::type_info *get_type_info_entry(_Unwind_Context *context,
                                            int filter)
 {
 	// Get the address of the record in the table.
-	dw_eh_ptr_t record = lsda->type_table - 
+	dw_eh_ptr_t record = lsda->type_table -
 		dwarf_size_of_fixed_size_field(lsda->type_table_encoding)*filter;
 	dw_eh_ptr_t start = record;
 	// Read the value, but it's probably an indirect reference...
@@ -765,7 +769,7 @@ static bool check_type_signature(__cxa_exception *ex,
 			return false;
 		}
 
-		// Special case for void* handler.  
+		// Special case for void* handler.
 		if(*target_ptr_type->__pointee == typeid(void))
 		{
 			adjustedPtr = exception_ptr;
@@ -819,7 +823,7 @@ static handler_type check_action_record(_Unwind_Context *context,
 		int filter = read_sleb128(&action_record);
 		dw_eh_ptr_t action_record_offset_base = action_record;
 		int displacement = read_sleb128(&action_record);
-		action_record = displacement ? 
+		action_record = displacement ?
 			action_record_offset_base + displacement : 0;
 		// We only check handler types for C++ exceptions - foreign exceptions
 		// are only allowed for cleanup.
@@ -906,7 +910,7 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 	// These two variables define how the exception will be handled.
 	dwarf_eh_action action = {0, 0};
 	unsigned long selector = 0;
-	
+
 	// During the search phase, we do a complete lookup.  If we return
 	// _URC_HANDLER_FOUND, then the phase 2 unwind will call this function with
 	// a _UA_HANDLER_FRAME action, telling us to install the handler frame.  If
@@ -932,7 +936,7 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 			// caught inside a cleanup (destructor).  We should call
 			// terminate() in this case.  The catchTemp (landing pad) field of
 			// exception object will contain null when personality function is
-			// called with _UA_HANDLER_FRAME action for phase 2 unwinding.  
+			// called with _UA_HANDLER_FRAME action for phase 2 unwinding.
 			return _URC_HANDLER_FOUND;
 		}
 
@@ -1040,7 +1044,7 @@ extern "C" void *__cxa_begin_catch(void *e)
 			// Clear the rethrow flag (make value positive) - we are allowed
 			// to delete this exception at the end of the catch block, as long
 			// as it isn't thrown again later.
-			
+
 			// Code pattern:
 			//
 			// try {
@@ -1060,7 +1064,7 @@ extern "C" void *__cxa_begin_catch(void *e)
 		{
 			ex->handlerCount++;
 		}
-		
+
 		return ex->adjustedPtr;
 	}
 	// exceptionObject is the pointer to the _Unwind_Exception within the
@@ -1100,7 +1104,7 @@ extern "C" void __cxa_end_catch()
 		//     }
 		// }
 		//
-		
+
 		ex->handlerCount++;
 		deleteException = false;
 	}
@@ -1134,7 +1138,7 @@ extern "C" std::type_info *__cxa_current_exception_type()
  *
  * This function does not return.
  */
-extern "C" void __cxa_call_unexpected(void*exception) 
+extern "C" void __cxa_call_unexpected(void*exception)
 {
 	_Unwind_Exception *exceptionObject = (_Unwind_Exception*)exception;
 	if (exceptionObject->exception_class == exception_class)
@@ -1143,15 +1147,15 @@ extern "C" void __cxa_call_unexpected(void*exception)
 		if (ex->unexpectedHandler)
 		{
 			ex->unexpectedHandler();
-			// Should not be reached.  
+			// Should not be reached.
 			abort();
 		}
 	}
-	
+
 	std::unexpected();
-	// Should not be reached.  
+	// Should not be reached.
 	abort();
-	
+
 	// Cannot get after abort
 	while(1);
 }
@@ -1182,7 +1186,7 @@ namespace pathscale
 		thread_local_handlers = flag;
 	}
 	/**
-	 * Sets a thread-local unexpected handler.  
+	 * Sets a thread-local unexpected handler.
 	 */
 	unexpected_handler set_unexpected(unexpected_handler f) throw()
 	{
@@ -1192,7 +1196,7 @@ namespace pathscale
 		return old;
 	}
 	/**
-	 * Sets a thread-local terminate handler.  
+	 * Sets a thread-local terminate handler.
 	 */
 	terminate_handler set_terminate(terminate_handler f) throw()
 	{

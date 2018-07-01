@@ -32,10 +32,10 @@ void *memcpy(void *dest, const void *src, size_t n);
 
 char *strdup(const char *s);
 
-char* strstr(const char* haystack, const char *needle);
+const char* strstr(const char* haystack, const char *needle);
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif /* __STRING_H__ */ 
+#endif /* __STRING_H__ */

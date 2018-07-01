@@ -12,7 +12,7 @@
  * value as a low-overhead lock.  Because statics (in most sane code) are
  * accessed far more times than they are initialised, this lock implementation
  * is heavily optimised towards the case where the static has already been
- * initialised.  
+ * initialised.
  */
 #include <stdint.h>
 #include <pthread.h>
@@ -23,6 +23,8 @@
  * Returns a pointer to the low 32 bits in a 64-bit value, respecting the
  * platform's byte order.
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
 static int32_t *low_32_bits(volatile int64_t *ptr)
 {
 	int32_t *low= (int32_t*)ptr;
@@ -35,6 +37,7 @@ static int32_t *low_32_bits(volatile int64_t *ptr)
 	}
 	return low;
 }
+#pragma GCC diagnostic pop
 
 /**
  * Acquires a lock on a guard, returning 0 if the object has already been
@@ -79,4 +82,3 @@ extern "C" void __cxa_guard_release(int64_t *guard_object)
 	*guard_object |= ((int64_t)1) << 56;
 	__cxa_guard_abort(guard_object);
 }
-

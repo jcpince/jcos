@@ -1725,7 +1725,7 @@ cpp_demangle_read_number(struct cpp_demangle_data *ddata, long *rtn)
 		return (0);
 
 	errno = 0;
-	if ((len = strtol(ddata->cur, (char **) NULL, 10)) == 0 &&
+	if ((len = strtol(ddata->cur, (const char **) NULL, 10)) == 0 &&
 	    errno != 0)
 		return (0);
 
@@ -1977,7 +1977,7 @@ cpp_demangle_read_subst(struct cpp_demangle_data *ddata)
 	else {
 		errno = 0;
 		/* substitution number is base 36 */
-		if ((nth = strtol(ddata->cur, (char **) NULL, 36)) == 0 &&
+		if ((nth = strtol(ddata->cur, (const char **) NULL, 36)) == 0 &&
 		    errno != 0)
 			return (0);
 
@@ -2191,7 +2191,7 @@ cpp_demangle_read_tmpl_param(struct cpp_demangle_data *ddata)
 	else {
 
 		errno = 0;
-		if ((nth = strtol(ddata->cur, (char **) NULL, 36)) == 0 &&
+		if ((nth = strtol(ddata->cur, (const char **) NULL, 36)) == 0 &&
 		    errno != 0)
 			return (0);
 

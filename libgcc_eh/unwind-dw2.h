@@ -26,7 +26,7 @@
 /* A target can override (perhaps for backward compatibility) how
    many dwarf2 columns are unwound.  */
 
-#include <i386.h>
+#include "i386.h"
 
 #ifndef DWARF_FRAME_REGISTERS
 #define DWARF_FRAME_REGISTERS FIRST_PSEUDO_REGISTER
@@ -70,7 +70,7 @@ struct frame_state_reg_info
 	const unsigned char *cfa_exp;
 	cfa_how_t cfa_how;
 };
-  
+
 /* The result of interpreting the frame unwind info for a frame.
    This is all symbolic at this point, as none of the values can
    be resolved until the target pc is located.  */
@@ -94,4 +94,3 @@ typedef struct
   unsigned char signal_frame;
   void *eh_ptr;
 } _Unwind_FrameState;
-

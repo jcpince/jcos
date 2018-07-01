@@ -19,7 +19,7 @@ void free(void *ptr);
 
 void *realloc(void *ptr, size_t size);
 
-long int strtol(const char *nptr, char **endptr, int base);
+long int strtol(const char *nptr, const char **endptr, int base);
 
 long long int strtoll(const char *nptr, char **endptr, int base);
 
@@ -33,4 +33,4 @@ extern int stderr;
 }
 #endif
 
-#endif /* __STDLIB_H__ */ 
+#endif /* __STDLIB_H__ */

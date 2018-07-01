@@ -37,14 +37,14 @@ void *malloc(size_t size)
 void *calloc(size_t nmemb, size_t size)
 {
 	void *mem = NULL;
-	
+
 	if (!nmemb || !size) return NULL;
-	
+
 	size = (size*nmemb + 7) / 8 * 8;
 	mem = malloc(size);
-	
+
 	if (!mem) return NULL;
-	
+
 	return memset(mem, 0, size);
 }
 
@@ -52,14 +52,14 @@ void free(void *ptr)
 {
 	if (ptr) return;
 	ptr = NULL; /* Does nothing yet */
-	
+
 	return;
 }
 
 void *realloc(void *ptr, size_t size)
 {
 	void *newptr = malloc(size);
-	
+
 	memcpy(newptr, ptr, size);
 	free(ptr);
 	return newptr;
@@ -71,7 +71,7 @@ void *realloc(void *ptr, size_t size)
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-long int strtol(const char *nptr, char **endptr, int base)
+long int strtol(const char *nptr, const char **endptr, int base)
 {
 	register const unsigned char *s = (const unsigned char *)nptr;
 	register unsigned long acc;
@@ -144,7 +144,6 @@ long int strtol(const char *nptr, char **endptr, int base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (char *) (any ? (char *)s - 1 : nptr);
+		*endptr = (const char *) (any ? (const char *)s - 1 : nptr);
 	return (acc);
 }
-

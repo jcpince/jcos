@@ -120,6 +120,8 @@ void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *
  * that src is not a public base of dst, and -3 that src is a multiple public
  * base type but never a virtual base type
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
 extern "C" void* __dynamic_cast(const void *sub,
                                 const __class_type_info */*src*/,
                                 const __class_type_info *dst,
@@ -131,4 +133,4 @@ extern "C" void* __dynamic_cast(const void *sub,
 	void *leaf = ADD_TO_PTR((void*)sub, header->leaf_offset);
 	return header->type->cast_to(leaf, dst);
 }
-
+#pragma GCC diagnostic pop

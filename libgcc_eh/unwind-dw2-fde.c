@@ -38,9 +38,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #endif
 
 #undef __gthread_mutex_lock
-#define __gthread_mutex_lock
+#define __gthread_mutex_lock(...)
 #undef __gthread_mutex_unlock
-#define __gthread_mutex_unlock
+#define __gthread_mutex_unlock(...)
 
 /* The unseen_objects list contains objects that have been registered
    but not yet categorized in any way.  The seen_objects list has had
@@ -50,7 +50,7 @@ static struct object *unseen_objects;
 static struct object *seen_objects;
 
 #ifdef __GTHREAD_MUTEX_INIT
-static __gthread_mutex_t object_mutex = __GTHREAD_MUTEX_INIT;
+//static __gthread_mutex_t object_mutex = __GTHREAD_MUTEX_INIT;
 #else
 static __gthread_mutex_t object_mutex;
 #endif
@@ -117,7 +117,7 @@ __register_frame (void *begin)
   /* If .eh_frame is empty, don't register at all.  */
   if (*(uword *) begin == 0)
     return;
-  
+
   /*if (begin != &start_eh_frame)
   {
   	printk("Wrong argument given, expected start_eh_frame(0x%p) but got 0x%p\n",

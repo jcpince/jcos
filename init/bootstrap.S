@@ -30,13 +30,13 @@ loader32:
 
 	call asm_check_cpuid
 	jc cpuid_not_supported
-	
+
 	call asm_check_longmode
 	jc lm_not_supported
-	
+
 	/* Will never return from long mode */
 	jmp activate_long_mode
-	
+
 	/* But just in case... */
 	jmp lm_not_supported
 
@@ -47,7 +47,7 @@ asm_check_cpuid:
 	xor $(1 << EFLAGS_IDBIT), %eax	/* Invert the bit ID in EFLAGS */
 	push %eax
 	popf 				/* Restaure the new EFLAGS */
-	
+
 	pushf
 	pop %eax
 	xor %ecx, %eax			/* Verify that ID-bit changed */
@@ -55,7 +55,7 @@ asm_check_cpuid:
 	and $1, %eax			/* Check if the bit 0 is set */
 	push %ecx			/* restaure original EFLAGS */
 	popf
-	
+
 	test %eax, %eax			/* test the bit 0 */
 	je .bad_cpu
 	ret
@@ -67,11 +67,11 @@ asm_check_longmode:
 	/* Call CPUID so that we check that the PROCINFO function is supported by CPUID */
 	mov $CPUID_HIGHESTFUNC, %eax
 	cpuid
-	
+
 	/* Compare the highest function with PROCINFO */
 	cmp $CPUID_PROCINFO, %eax
 	jb .no_procinf
-	
+
 	/* Call CPUID with PROCINFO */
 	mov $CPUID_PROCINFO, %eax
 	cpuid
@@ -85,7 +85,7 @@ asm_check_longmode:
 
 cpuid_not_supported:
 	jmp cpuid_not_supported
-	
+
 lm_not_supported:
 	jmp lm_not_supported
 
@@ -94,8 +94,8 @@ activate_long_mode:
 	/* 1. Have paging disabled						*/
 	mov %cr0, %eax			/* Deactivate long mode */
 	and $0x7fffffff, %eax		/* by disabling paging. */
-	mov %eax, %cr0 
-	
+	mov %eax, %cr0
+
 	/* Put EDI on the buffer reserved for PML4/PDP/PD and PT */
 	mov $(phys_pml4_start), %edi
 	/* Since we are doing a rep stosl, count should be bytes/4 */
@@ -104,7 +104,7 @@ activate_long_mode:
     	xor %eax, %eax
     	rep stosl				/* clear the PML4 */
    	pop %edi                            /* Get EDI back with the address of PML4 */
-   	
+
 //1:	jmp 1b
 
    	/* 3. Load CR3 with the physical address of the PML4			*/
@@ -112,28 +112,28 @@ activate_long_mode:
 
 	/* Build Page Map Level 4 */
 	/* Mapping of the linear addresses 0 -> 0x7FFFFFFFFF to the physical memory */
-    	lea %es:0x1000(%edi), %eax		/* Put the address of the Page Directory Pointer Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    	lea 0x1000(%edi), %eax		       /* Put the address of the Page Directory Pointer Table in to EAX */
+    	or $(PAGE_PRESENT | PAGE_WRITE), %eax  /* Or EAX with the flags - present flag, writable flag */
     	mov %eax, %es:(%edi)			/* Store the value of EAX as the first PML4 entry */
     	mov %eax, (0x1FF*8)(%edi)		/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
 
 	/* Build the Page Directory Pointer */
-    	lea %es:0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
+    	lea 0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
     	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
     	mov %eax, %es:0x1000(%edi)		/* Store the value of EAX as the first PDPT entry */
     	mov %eax, (0x1FE*8+0x1000)(%edi)	/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
     	mov %eax, (0x2*8+0x1000)(%edi)		/* Set the same ptr for the addresses 0x0000000080100000 */
-    	
+
 	/* Build the Page Directory */
-    	lea %es:0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    	lea 0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
     	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
     	mov %eax, %es:0x2000(%edi)		/* Store the value of EAX as the first PD entry */
     	mov %eax, (0x8*8+0x2000)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    	lea %es:0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    	lea 0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
     	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
     	mov %eax, %es:0x2008(%edi)		/* Store the value of EAX as the first PD entry */
     	mov %eax, (0x8*8+0x2008)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    	lea %es:0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    	lea 0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
     	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
     	mov %eax, %es:0x2010(%edi)		/* Store the value of EAX as the first PD entry */
     	mov %eax, (0x8*8+0x2010)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
@@ -150,7 +150,7 @@ activate_long_mode:
 	cmp $(2*MB), %eax
 	jb 1b
 	pop %edi				/* Restore EDI which contains PML4 base address */
-	
+
 	push %edi				/* Save EDI so we can set CR3 later on */
 	lea 0x4000(%edi), %edi			/* Point EDI to the page table */
 	mov $(0x200000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
@@ -160,7 +160,7 @@ activate_long_mode:
 	cmp $(4*MB), %eax
 	jb 1b
 	pop %edi				/* Restore EDI which contains PML4 base address */
-	
+
 	push %edi				/* Save EDI so we can set CR3 later on */
 	lea 0x5000(%edi), %edi			/* Point EDI to the page table */
 	mov $(0x400000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
@@ -184,7 +184,7 @@ activate_long_mode:
 	mov %cr4, %eax
 	or $0xA0, %eax			/* Set the PAE and PGE bits.*/
 	mov %eax, %cr4
-	
+
 	/* 4. Enable long mode by setting the EFER.LME flag in MSR 0xC0000080	*/
 	mov $0xC0000080, %ecx
 	rdmsr
@@ -195,7 +195,7 @@ activate_long_mode:
 	mov %cr0, %eax			/* Activate long mode */
 	or $0x80000000, %eax		/* by enabling paging */
 	mov %eax, %cr0
-	
+
 	/* Jump to 64-bits mode with a long jump (or lret) */
 	lgdt GDT.Pointer
 	ljmpl $0x0008, $LongMode
@@ -239,7 +239,7 @@ LongMode:
 	/* jmp and not push so that the stack is not modified */
 	movabsq $kernel_start64, %rax
 	jmp *%rax
-	
+
 	/* Should never arrive here but just in case */
 	cli
 hang:
@@ -255,13 +255,13 @@ map_virtual_memory64:
 		PML4+0x1000: Physical PDPT
 		PML4+0x2000: Physical PDT
 		PML4+0x3000: Physical PT
-		
-		
+
+
 		PML4+0x6000: Virtual PDPT
 		PML4+0x7000: Virtual PDT
 		PML4+0x8000: Virtual PT
 	*/
-	/* Mapping of the linear addresses 0x8000000000 -> 0x0000FFFFFFFFFFFF(most significant 
+	/* Mapping of the linear addresses 0x8000000000 -> 0x0000FFFFFFFFFFFF(most significant
 	bit propagated so virtually 0xFFFFFFFFFFFFFFFF) to the physical memory */
     	lea 0x6000(%rdi), %rax		/* Put the address of the Page Directory Pointer Table in to EAX */
     	or $(PAGE_PRESENT | PAGE_WRITE), %rax	/* Or EAX with the flags - present flag, writable flag */

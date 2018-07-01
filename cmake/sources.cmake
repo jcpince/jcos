@@ -1,0 +1,4 @@
+append_list(PROJECT_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+include(${_CMAKE_ROOT}/core_sources.cmake)
+include(${_CMAKE_ROOT}/drivers_sources.cmake)

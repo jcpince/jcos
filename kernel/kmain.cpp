@@ -1,4 +1,4 @@
-#include <myclass.hpp>
+#include <MyClass.hpp>
 #include <KOStream.hpp>
 #include <kernel/KMemoryManager.hpp>
 #include <init/KMultibootManagerFactory.hpp>
@@ -98,7 +98,6 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
 	Myclass c;
 	uint64_t count = 0;
-	char tmpbuf[64];
     KSerial ttyS0(0);
 
 	kstd::kout.SetTextColour(BLACK);
@@ -117,27 +116,27 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		kusable_memory_region_t *regions = mbmgr->getMemoryRegions();
 		while (regions->size != 0)
 		{
-			kstd::kout << _L("Found a region from 0x") << hex64(tmpbuf, regions->base_address);
-			kstd::kout << _L(" to 0x") << hex64(tmpbuf, regions->base_address + regions->size) << _L(" - size ");
+			kstd::kout.printf("Found a region from 0xlx to %lx -- size ",
+                    regions->base_address, regions->base_address + regions->size);
 			if (regions->size > GB) {
-				kstd::kout << regions->size/GB << _L(" GiB") << kstd::endl;
+				kstd::kout.printf("%d GiB\n", regions->size/GB);
 			}
 			else if (regions->size > MB) {
-				kstd::kout << regions->size/MB << _L(" MiB") << kstd::endl;
+				kstd::kout.printf("%d MiB\n", regions->size/GB);
 			}
 			else if (regions->size > KB) {
-				kstd::kout << regions->size/KB << _L(" KiB") << kstd::endl;
+				kstd::kout.printf("%d KiB\n", regions->size/GB);
 			}
 			else {
-				kstd::kout << regions->size << _L(" Bytes") << kstd::endl;
+				kstd::kout.printf("%d Bytes\n", regions->size/GB);
 			}
 			regions++;
 		}
 		char *bootloadername = mbmgr->getBootloaderName();
 		char *commandline = mbmgr->getCommandLine();
 
-		kstd::kout << "Bootloader name: " << bootloadername << kstd::endl;
-		kstd::kout << "Command line: " << commandline << kstd::endl;
+		kstd::kout << _L("Bootloader name: ") << bootloadername << kstd::endl;
+		kstd::kout << _L("Command line: ") << commandline << kstd::endl;
 
 		free(bootloadername);
 		free(commandline);

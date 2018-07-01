@@ -2,11 +2,11 @@
 /* Engesn (Derived) Operating System
  * Copyright (c) 2002, 2003 Stephen von Takach
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software
- * is hereby granted, provided that both the copyright notice and 
- * this permission notice appear in all copies of the software, 
- * derivative works or modified versions. 
+ * is hereby granted, provided that both the copyright notice and
+ * this permission notice appear in all copies of the software,
+ * derivative works or modified versions.
 */
 
 #include <Video.h>
@@ -34,7 +34,7 @@ Video::Video()
 	text = 0x7;
 	back = 0;
 
-	clear();			//clear sets xpos and ypos 
+	clear();			//clear sets xpos and ypos
 }
 
 Video::~Video() {}
@@ -56,6 +56,11 @@ void Video::write(char *cp)		//Puts every char in a string onto the screen
 	while((*cp) != 0) put(*(cp++));
 }
 
+void Video::write(const char *cp)		//Puts every char in a string onto the screen
+{
+	while((*cp) != 0) put(*(cp++));
+}
+
 void Video::put(char c)
 {
 	int t;
@@ -65,15 +70,15 @@ void Video::put(char c)
 		xpos = 0;
 		break;
 
-	case '\n':                         // -> newline (with implicit cr) 
+	case '\n':                         // -> newline (with implicit cr)
 		xpos = 0;
 		ypos++;
 		break;
 
-	case 8:                            // -> backspace 
-		t = xpos + ypos * scrWidth;    // get linear address 
-		if(t > 0) t--;      
-									   // if not in home position, step back 
+	case 8:                            // -> backspace
+		t = xpos + ypos * scrWidth;    // get linear address
+		if(t > 0) t--;
+									   // if not in home position, step back
 		if(xpos > 0)
 		{
 			xpos--;
@@ -84,14 +89,14 @@ void Video::put(char c)
 			xpos = scrWidth - 1;
 		}
 
-		*(videomem + t) = ' ' | (colour << 8); // put space under the cursor 
+		*(videomem + t) = ' ' | (colour << 8); // put space under the cursor
 		break;
 
-	default:						// -> all other characters 
-		if(c < ' ') break;				// ignore non printable ascii chars 
+	default:						// -> all other characters
+		if(c < ' ') break;				// ignore non printable ascii chars
 		*(videomem + xpos + ypos * scrWidth) = c | (colour << 8);
-		xpos++;							// step cursor one character 
-		if(xpos == scrWidth)			// to next line if required 
+		xpos++;							// step cursor one character
+		if(xpos == scrWidth)			// to next line if required
 		{
 			xpos = 0;
 			ypos++;
@@ -99,25 +104,25 @@ void Video::put(char c)
 		break;
 	}
 
-	if(ypos == scrHeight)			// the cursor moved off of the screen? 
+	if(ypos == scrHeight)			// the cursor moved off of the screen?
 	{
-		scrollup();					// scroll the screen up 
-		ypos--;						// and move the cursor back 
+		scrollup();					// scroll the screen up
+		ypos--;						// and move the cursor back
 	}
-									// and finally, set the cursor 
+									// and finally, set the cursor
 	setcursor(xpos, ypos);
 }
 
 
-void Video::scrollup()		// scroll the screen up one line 
+void Video::scrollup()		// scroll the screen up one line
 {
 	unsigned int t;
 
 	//disable();	//this memory operation should not be interrupted,
 				//can cause errors (more of an annoyance than anything else)
-	for(t = 0; t < scrWidth * (scrHeight - 1); t++)		// scroll every line up 
+	for(t = 0; t < scrWidth * (scrHeight - 1); t++)		// scroll every line up
 		*(videomem + t) = *(videomem + t + scrWidth);
-	for(; t < scrWidth * scrHeight; t++)				//clear the bottom line 
+	for(; t < scrWidth * scrHeight; t++)				//clear the bottom line
 		*(videomem + t) = ' ' | (colour << 8);
 
 	//enable();
@@ -127,17 +132,17 @@ void Video::setcursor(unsigned x, unsigned y)	//Hardware move cursor
 {
     unsigned short offset;
 
-	offset = x + y * scrWidth;      // 80 characters per line 
-	outportb(crtc_mem + 0, 14);     // MSB of offset to CRTC reg 14 
+	offset = x + y * scrWidth;      // 80 characters per line
+	outportb(crtc_mem + 0, 14);     // MSB of offset to CRTC reg 14
 	outportb(crtc_mem + 1, offset >> 8);
-	outportb(crtc_mem + 0, 15);     // LSB of offset to CRTC reg 15 
+	outportb(crtc_mem + 0, 15);     // LSB of offset to CRTC reg 15
 	outportb(crtc_mem + 1, offset);
 }
 
 void Video::gotoxy(unsigned x, unsigned y)		//Software move cursor
 {
-	xpos = x; ypos = y;					// set cursor to location 
-	setcursor(x, y);				// call the hw. cursor setup 
+	xpos = x; ypos = y;					// set cursor to location
+	setcursor(x, y);				// call the hw. cursor setup
 }
 
 
@@ -176,5 +181,3 @@ void Video::SetColour(Colours Text, Colours Back, bool blink)
 		colour = (back << 4) | text | 128;
 	}
 }
-
-

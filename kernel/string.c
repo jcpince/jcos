@@ -5,13 +5,13 @@
 void *memset(void *s, int c, size_t n)
 {
 	char *ptr = (char*)s;
-	
+
 	if (!n || !s) return s;
-	
+
 	do {
 		ptr[n-1] = (unsigned char)(c&0xff);
 	} while(n-- > 0);
-	
+
 	return s;
 }
 
@@ -26,7 +26,7 @@ int strcmp(const char *s1, const char *s2)
 	{
 		s1++;s2++;
 	}
-	
+
 	return *s2 - *s1;
 }
 
@@ -39,7 +39,7 @@ char* strcpy(char *dst, const char *src)
 	}
 	/* copy the \0 character at the end */
 	*dst = *src;
-	
+
 	return result;
 }
 
@@ -59,12 +59,12 @@ char* strncpy(char *dest, const char *src, size_t n)
 int strncmp(const char *s1, const char *s2, size_t n)
 {
 	if (!n) return 0;
-	
+
 	while(*s1 && (*s1 == *s2) && (n > 0))
 	{
 		s1++;s2++;n--;
 	}
-	
+
 	return *s2 - *s1;
 }
 
@@ -74,20 +74,21 @@ size_t strlen(const char *s)
 	while(*s++) {
 		size++;
 	}
-	
+
 	return size;
 }
 
 void *memcpy(void *dest, const void *src, size_t n)
 {
-	char *d = (char*)dest, *s = (char*)src;
-	
+	char *d = (char*)dest;
+    const char *s = (const char *)src;
+
 	if (!n) return dest;
-	
+
 	do {
 		*d++ = *s++;
 	} while(--n > 0);
-	
+
 	return dest;
 }
 
@@ -98,18 +99,17 @@ char *strdup(const char *s)
 	return newstr;
 }
 
-char* strstr(const char* haystack, const char *needle)
+const char* strstr(const char* haystack, const char *needle)
 {
 	int len = strlen(needle);
-	
-	if (!len) return (char *)haystack;
+
+	if (!len) return haystack;
 
 	while (*haystack)
 	{
 		if (!strncmp(haystack, needle, len))
-			return (char *)haystack;
+			return haystack;
 		haystack++;
 	}
-	return (char *)NULL;
+	return (const char*)NULL;
 }
-

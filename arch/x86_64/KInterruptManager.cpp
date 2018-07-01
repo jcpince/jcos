@@ -1,4 +1,4 @@
-#include <KInterruptManager.hpp>
+#include "KInterruptManager.hpp"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,7 +34,7 @@ bool KInterruptManager::disable_interrupt(uint32_t interrupt __attribute__((__un
 bool KInterruptManager::add_handler(uint32_t interrupt, kinterrupt_handler_t handler)
 {
 	if (interrupt >= KIDT_NBVECTORS) return false;
-	
+
 	struct kidt_entry *entry = &((struct kidt_entry *)vector_address)[interrupt];
 	addr_t handler_offset = (addr_t)handler;
 	entry->offset_low = handler_offset & 0xffff;
@@ -50,12 +50,10 @@ bool KInterruptManager::add_handler(uint32_t interrupt, kinterrupt_handler_t han
 	return true;
 }
 
-bool KInterruptManager::remove_handler(uint32_t interrupt __attribute__((__unused__)), 
+bool KInterruptManager::remove_handler(uint32_t interrupt __attribute__((__unused__)),
 	kinterrupt_handler_t handler __attribute__((__unused__)))
 {
 	struct kidt_entry *entry = &((struct kidt_entry *)vector_address)[interrupt];
 	entry->presence = 0;
 	return true;
 }
-
-

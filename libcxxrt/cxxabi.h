@@ -2,7 +2,7 @@
 #define __CXXABI_H_
 #include <stdint.h>
 #include <unwind.h>
-namespace std 
+namespace std
 {
 	class type_info;
 }
@@ -69,7 +69,7 @@ struct __cxa_exception
 	/** Type info for the thrown object. */
 	std::type_info *exceptionType;
 	/** Destructor for the object, if one exists. */
-	void (*exceptionDestructor) (void *); 
+	void (*exceptionDestructor) (void *);
 	/** Handler called when an exception specification is violated. */
 	unexpected_handler unexpectedHandler;
 	/** Hander called to terminate. */
@@ -121,7 +121,7 @@ struct __cxa_exception
 	 *
 	 * Note that it is safe to extend this structure at the beginning, rather
 	 * than the end, because the public API for creating it returns the address
-	 * of the end (where the exception object can be stored) 
+	 * of the end (where the exception object can be stored)
 	 */
 	uintptr_t referenceCount;
 #endif
