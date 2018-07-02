@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <asmf.H>
 
+KIInterruptManager *GetInterruptManager()
+{
+    static KIInterruptManager *kim = (KIInterruptManager*)NULL;
+    if (!kim) kim = new KInterruptManager();
+
+    return kim;
+}
+
 KInterruptManager::KInterruptManager()
 {
 	/* Insure the buffer is Page aligned */

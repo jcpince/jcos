@@ -1,57 +1,33 @@
-#include <MyClass.hpp>
-#include <KOStream.hpp>
-#include <kernel/KMemoryManager.hpp>
 #include <init/KMultibootManagerFactory.hpp>
+#include <arch/x86_64/KLegacyUart.hpp>
+#include <kernel/KMemoryManager.hpp>
 #include <KIInterruptManager.hpp>
-#include <drivers/serial/KSerial.hpp>
+#include <KOStream.hpp>
+#include <MyClass.hpp>
 
-#include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <stdio.h>
 
 int dbg = 1;
-uint32_t serial_interrupts = 0;
 
 extern "C" void myisr0();
 extern "C" void myisr1();
 extern "C" void myisr2();
 extern "C" void myisr3();
-extern "C" void serial_isr();
 extern "C" void kbdisr();
 extern "C" void page_fault_isr();
-/*
-extern "C" void __cxa_pure_virtual()
-{
-    abort();
-}
 
-void* operator new(size_t size)
-{
-	void * mem = malloc(size);
-	if (!mem)
-	{
-		abort();
-	}
-
-	return mem;
-}
-
-void operator delete(void * ptr)
-{
-	free(ptr);
-}*/
+#define IO_KBD0_PORT        (0x60)
+#define PIC0_PORTA_NUMBER   (0x20)
+#define PIC_INT_ACK         (0x20)
 
 extern "C" void kbd_callback(void)
 {
 	uint8_t key, scancode;
 	bool	keypressed;
-	__asm__ __volatile__ (
-		"in $0x60, %%al		\n" /* read information from the keyboard */
-		"mov %%al, %0		\n"
-		"mov $0x20, %%al	\n"
-		"out %%al, $0x20	\n" /* acknowledge the interrupt to the PIC */
-		: "=r" (key)
-	);
+    key = inportb(IO_KBD0_PORT);
+    outportb(PIC0_PORTA_NUMBER, PIC_INT_ACK);
 	keypressed = (key & 0x80) == 0;
 	scancode = key & 0x7f;
 	printk("Keyboard interrupt: got 0x%x %s: code 0x%x '%c'\n", key&0xff, (keypressed ? "pressed" : "released"), scancode, scancode);
@@ -96,18 +72,14 @@ extern "C" void int3_callback(void)
 	printk("Interrupt 3 caught\n");
 }
 
-extern "C" void serial_callback(void)
-{
-	serial_interrupts++;
-}
-
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
     /* Shall be called early on to allow interrupts */
+    KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
 	Myclass c;
 	uint64_t count = 0;
-    KSerial ttyS0(0);
+    KLegacyUart ttyS0(0);
 
 	kstd::kout.SetTextColour(BLACK);
 	kstd::kout.SetBackColour(WHITE);
@@ -172,9 +144,8 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->add_interrupt_handler(2, myisr2);
 	kim->add_interrupt_handler(3, myisr3);
 	kim->add_interrupt_handler(14, page_fault_isr);
-
-	kstd::kout << _L("done, enable interrupts...") << kstd::endl;
 	kim->enableall();
+
 	kstd::kout << _L("done, generates interrupt 0") << kstd::endl;
 	kim->generate_interrupt(0);
 	kstd::kout << _L("done, generates interrupt 1") << kstd::endl;
@@ -188,10 +159,6 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
     kim->add_irq_handler(1, kbdisr);
 	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
 
-	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
-    kim->add_irq_handler(4, serial_isr);
-	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
-
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
 
 
@@ -202,14 +169,15 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
     /*int cd = 100;
     while (cd-- > 0)
     {
-        char ch = ttyS0.read();
+        char ch = ttyS0.readb();
         //kstd::kout.printf("received %c\n", ch);
         printk("received %c\n", ch);
-        ttyS0.write(ch+1);
+        ttyS0.writeb(ch+1);
     }*/
 
-	sleep(5);
-	kstd::kout << _L("serial_interrupts during the 5 seconds: ") << serial_interrupts << kstd::endl;
+	sleep(100);
+	kstd::kout << _L("serial_interrupts during the 1 seconds: ") << ttyS0.get_interrupts_count() << kstd::endl;
+	kstd::kout.printf("ttyS0.interrupt_identification_register: 0x%02x\n", ttyS0.interrupt_identification_register&0xff);
 
 	int *ptr = (int *)0xFFFFFFFFA0000000;
 	*ptr = 7;

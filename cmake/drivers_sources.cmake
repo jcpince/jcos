@@ -1,3 +1,3 @@
 append_list(PROJECT_SRC
-    ${_SRC_ROOT}/drivers/serial/KSerial.cpp
+    ${_SRC_ROOT}/arch/x86_64/KLegacyUart.cpp
 )

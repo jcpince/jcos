@@ -3,6 +3,8 @@
 
 #include <KIInterruptManager.hpp>
 
+#include <stdlib.h>
+
 /*
 	TODO: Include this from a unique header
 */
@@ -31,6 +33,7 @@
 #define PIC0_PORTB_NUMBER      (0x0021)
 #define PIC1_PORTA_NUMBER      (0x00a0)
 #define PIC1_PORTB_NUMBER      (0x00a1)
+#define PIC_INT_ACK            (0x20)
 
 struct kidt_entry {
 	uint16_t	offset_low;
@@ -103,6 +106,6 @@ public:
     }
 };
 
-KIInterruptManager *kim = new KInterruptManager();
+KIInterruptManager *GetInterruptManager();
 
 #endif /* __KINTERRUPTMANAGER_HPP__ */

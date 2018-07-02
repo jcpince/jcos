@@ -44,6 +44,6 @@ public:
     virtual uint32_t irq2interrupt(uint32_t irq_number) = 0;
 };
 
-extern KIInterruptManager *kim;
+KIInterruptManager *GetInterruptManager();
 
 #endif /* __KIINTERRUPTMANAGER_HPP__ */
