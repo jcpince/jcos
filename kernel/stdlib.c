@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 
 #if defined __x86_64__
 #define LONG_MAX	9223372036854775807L
@@ -14,13 +15,15 @@
 
 int errno = 0;
 
-#define MALLOC_BUFFER_SIZE	4*MB
-static char malloc_buffer[MALLOC_BUFFER_SIZE];
-
 void abort(void)
 {
+    printk("Aborting!");
 	while(1);
 }
+
+#if !defined(USE_DLMALLOC)
+#define MALLOC_BUFFER_SIZE	4*MB
+static char malloc_buffer[MALLOC_BUFFER_SIZE];
 
 void *malloc(size_t size)
 {
@@ -64,6 +67,7 @@ void *realloc(void *ptr, size_t size)
 	free(ptr);
 	return newptr;
 }
+#endif
 
 /*
  * Convert a string to a long integer.

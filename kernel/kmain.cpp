@@ -16,6 +16,10 @@ extern "C" void page_fault_isr();
 #define IO_KBD0_PORT        (0x60)
 #define PIC0_PORTA_NUMBER   (0x20)
 #define PIC_INT_ACK         (0x20)
+#define KEYBOARD_IRQ_NUMBER (0x1)
+
+extern uint64_t _start;
+extern uint64_t _heap_start;
 
 DECLARE_ISR(keyboard)
 {
@@ -81,6 +85,8 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.SetBackColour(WHITE);
 	kstd::kout.clear();
 
+	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
+
 	//while(dbg);
 
 	KIMultibootManager *mbmgr = kmmf.getMultibootMgr(bootloader_magic, (addr_t)mbi);
@@ -91,23 +97,24 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	else
 	{
 		kusable_memory_region_t *regions = mbmgr->getMemoryRegions();
-		while (regions->size != 0)
+        kusable_memory_region_t *region = &regions[0];
+		while (region->size != 0)
 		{
-			kstd::kout.printf("Found a region from 0xlx to %lx -- size ",
-                    regions->base_address, regions->base_address + regions->size);
-			if (regions->size > GB) {
-				kstd::kout.printf("%d GiB\n", regions->size/GB);
+			kstd::kout.printf("Found a region from 0x%lx to 0x%lx -- size ",
+                    region->base_address, region->base_address + region->size);
+			if (region->size > GB) {
+				kstd::kout.printf("%d GiB\n", region->size/GB);
 			}
-			else if (regions->size > MB) {
-				kstd::kout.printf("%d MiB\n", regions->size/GB);
+			else if (region->size > MB) {
+				kstd::kout.printf("%d MiB\n", region->size/MB);
 			}
-			else if (regions->size > KB) {
-				kstd::kout.printf("%d KiB\n", regions->size/GB);
+			else if (region->size > KB) {
+				kstd::kout.printf("%d KiB\n", region->size/KB);
 			}
 			else {
-				kstd::kout.printf("%d Bytes\n", regions->size/GB);
+				kstd::kout.printf("%d Bytes\n", region->size);
 			}
-			regions++;
+			region++;
 		}
 		char *bootloadername = mbmgr->getBootloaderName();
 		char *commandline = mbmgr->getCommandLine();
@@ -120,6 +127,11 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		free(regions);
 		delete mbmgr;
 	}
+
+    uint32_t *allocated_data = (uint32_t *)malloc(100*sizeof(uint32_t));
+    kstd::kout.printf("allocated_data: %p\n", allocated_data);
+    allocated_data[0] = 20;
+    kstd::kout.printf("allocated_data[0]: %u\n", allocated_data[0]);
 
 	try
 	{
@@ -134,35 +146,27 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		kstd::kout << count++ << _L(": Unexpected exception caught!!!") << kstd::endl;
 	}
 
-	kstd::kout << _L("setup the idt and waits for 2s") << kstd::endl;
 	kim->add_interrupt_handler(0, GET_ISR_NAME(int0));
 	kim->add_interrupt_handler(1, GET_ISR_NAME(int1));
 	kim->add_interrupt_handler(2, GET_ISR_NAME(int2));
 	kim->add_interrupt_handler(3, GET_ISR_NAME(int3));
 	kim->add_interrupt_handler(14, page_fault_isr);
+    kim->add_irq_handler(KEYBOARD_IRQ_NUMBER, GET_ISR_NAME(keyboard));
 	kim->enableall();
 
 	kstd::kout << _L("done, generates interrupt 0") << kstd::endl;
 	kim->generate_interrupt(0);
-	kstd::kout << _L("done, generates interrupt 1") << kstd::endl;
-	kim->generate_interrupt(1);
 	kstd::kout << _L("done, generates interrupt 2") << kstd::endl;
 	kim->generate_interrupt(2);
-	kstd::kout << _L("done, generates interrupt 3") << kstd::endl;
-	kim->generate_interrupt(3);
-
-	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
-    kim->add_irq_handler(1, GET_ISR_NAME(keyboard));
-	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
 
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
 
-
-	kstd::kout.printf("sizeof(unsigned int): %d\n", sizeof(unsigned int));
-	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
-	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
-
     /* Go to sleep mode... */
+    kstd::kout.printf("&_start      0x%lx\n", &_start);
+    kstd::kout.printf("&_heap_start 0x%lx\n", &_heap_start);
+    uint32_t stack_int;
+    kstd::kout.printf("&stack_int   0x%lx\n", &stack_int);
+    kstd::kout.printf("kim          %p\n", kim);
     while(1)
     {
         printk("Entering sleep...\n");
