@@ -72,6 +72,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
     /* Shall be called early on to allow interrupts */
     KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
+
 	Myclass c;
 	uint64_t count = 0;
     KLegacyUart ttyS0(0);
@@ -161,12 +162,17 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
 	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
 
-	sleep(100);
+    /* Go to sleep mode... */
+    while(1)
+    {
+        printk("Entering sleep...\n");
+        __asm__("hlt");
+        printk("Woken\n");
+    }
 
-	int *ptr = (int *)0xFFFFFFFFA0000000;
+	/* Test the crash handler
+    int *ptr = (int *)0xFFFFFFFFA0000000;
 	*ptr = 7;
 	int test = *ptr;
-	kstd::kout << _L("That's all folks!!") << test << kstd::endl;
-	//kstd::kout << _L("That's all folks!!") << kstd::endl;
-	while(1);
+	kstd::kout << _L("That's all folks!!") << test << kstd::endl;*/
 }
