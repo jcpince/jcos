@@ -43,95 +43,26 @@
 	mov %eax, %fs; \
 	mov %eax, %gs
 
-.extern kbd_callback
-.globl kbdisr
-kbdisr:
-	cli
-	pusha64
-	install_kds64
+#define install_isr(isr_name)                   \
+    .extern callback_##isr_name;                \
+    .globl  isr_##isr_name;                     \
+    isr_##isr_name:                             \
+        cli;                                    \
+        pusha64;                                \
+        install_kds64;                          \
+        movabsq   $callback_##isr_name, %rax;   \
+        call    *%rax;                          \
+        restaure_origds;                        \
+        popa64;                                 \
+        sti;                                    \
+        iretq;   /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
 
-	movabsq   $kbd_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
-
-.extern int0_callback
-.globl myisr0
-myisr0:
-	cli
-	pusha64
-	install_kds64
-
-	movabsq   $int0_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
-
-.extern int1_callback
-.globl myisr1
-myisr1:
-	cli
-	pusha64
-	install_kds64
-
-	movabsq   $int1_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
-
-.extern int2_callback
-.globl myisr2
-myisr2:
-	cli
-	pusha64
-	install_kds64
-
-	movabsq   $int2_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
-
-.extern int3_callback
-.globl myisr3
-myisr3:
-	cli
-	pusha64
-	install_kds64
-
-	movabsq   $int3_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
-
-.extern serial_callback
-.globl serial_isr
-serial_isr:
-	cli
-	pusha64
-	install_kds64
-
-	movabsq   $serial_callback, %rax
-	call    *%rax
-
-	restaure_origds
-	popa64
-	sti
-	iretq           /* pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP */
+install_isr(keyboard)
+install_isr(int0)
+install_isr(int1)
+install_isr(int2)
+install_isr(int3)
+install_isr(serial)
 
 .extern page_fault_callback
 .globl page_fault_isr

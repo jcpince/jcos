@@ -11,18 +11,13 @@
 
 int dbg = 1;
 
-extern "C" void myisr0();
-extern "C" void myisr1();
-extern "C" void myisr2();
-extern "C" void myisr3();
-extern "C" void kbdisr();
 extern "C" void page_fault_isr();
 
 #define IO_KBD0_PORT        (0x60)
 #define PIC0_PORTA_NUMBER   (0x20)
 #define PIC_INT_ACK         (0x20)
 
-extern "C" void kbd_callback(void)
+DECLARE_ISR(keyboard)
 {
 	uint8_t key, scancode;
 	bool	keypressed;
@@ -33,9 +28,24 @@ extern "C" void kbd_callback(void)
 	printk("Keyboard interrupt: got 0x%x %s: code 0x%x '%c'\n", key&0xff, (keypressed ? "pressed" : "released"), scancode, scancode);
 }
 
-extern "C" void int0_callback(void)
+DECLARE_ISR(int0)
 {
 	printk("Interrupt 0 caught\n");
+}
+
+DECLARE_ISR(int1)
+{
+	printk("Interrupt 1 caught\n");
+}
+
+DECLARE_ISR(int2)
+{
+	printk("Interrupt 2 caught\n");
+}
+
+DECLARE_ISR(int3)
+{
+	printk("Interrupt 3 caught\n");
 }
 
 extern "C" void page_fault_callback(uint64_t bad_address, uint64_t fault_pc, uint64_t pfflags)
@@ -55,21 +65,6 @@ extern "C" void page_fault_callback(uint64_t bad_address, uint64_t fault_pc, uin
 		default: printk("Bad page fault flags\n");
 	}
 	while(1);
-}
-
-extern "C" void int1_callback(void)
-{
-	printk("Interrupt 1 caught\n");
-}
-
-extern "C" void int2_callback(void)
-{
-	printk("Interrupt 2 caught\n");
-}
-
-extern "C" void int3_callback(void)
-{
-	printk("Interrupt 3 caught\n");
 }
 
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
@@ -139,10 +134,10 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	}
 
 	kstd::kout << _L("setup the idt and waits for 2s") << kstd::endl;
-	kim->add_interrupt_handler(0, myisr0);
-	kim->add_interrupt_handler(1, myisr1);
-	kim->add_interrupt_handler(2, myisr2);
-	kim->add_interrupt_handler(3, myisr3);
+	kim->add_interrupt_handler(0, GET_ISR_NAME(int0));
+	kim->add_interrupt_handler(1, GET_ISR_NAME(int1));
+	kim->add_interrupt_handler(2, GET_ISR_NAME(int2));
+	kim->add_interrupt_handler(3, GET_ISR_NAME(int3));
 	kim->add_interrupt_handler(14, page_fault_isr);
 	kim->enableall();
 
@@ -156,7 +151,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->generate_interrupt(3);
 
 	kstd::kout << _L("done, install a keyboard interrupt handler") << kstd::endl;
-    kim->add_irq_handler(1, kbdisr);
+    kim->add_irq_handler(1, GET_ISR_NAME(keyboard));
 	kstd::kout << _L("done, ready to receive keys") << kstd::endl;
 
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
@@ -166,18 +161,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
 	kstd::kout.printf("sizeof(unsigned long int): %d\n", sizeof(unsigned long int));
 
-    /*int cd = 100;
-    while (cd-- > 0)
-    {
-        char ch = ttyS0.readb();
-        //kstd::kout.printf("received %c\n", ch);
-        printk("received %c\n", ch);
-        ttyS0.writeb(ch+1);
-    }*/
-
 	sleep(100);
-	kstd::kout << _L("serial_interrupts during the 1 seconds: ") << ttyS0.get_interrupts_count() << kstd::endl;
-	kstd::kout.printf("ttyS0.interrupt_identification_register: 0x%02x\n", ttyS0.interrupt_identification_register&0xff);
 
 	int *ptr = (int *)0xFFFFFFFFA0000000;
 	*ptr = 7;

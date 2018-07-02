@@ -9,13 +9,9 @@
 static constexpr uint16_t uart_ports[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 static KLegacyUart *port0 = (KLegacyUart *)NULL;
 
-extern "C" void serial_isr();
-
 void _serial_callback(void)
 {
     if (!port0) return;
-	port0->interrupts_count++;
-    port0->interrupt_identification_register = inportb(uart_ports[port0->uart_idx] + 2);
 
     if (port0->is_byte_available())
     {
@@ -25,7 +21,7 @@ void _serial_callback(void)
     outportb(PIC0_PORTA_NUMBER, PIC_INT_ACK);
 }
 
-extern "C" void serial_callback(void)
+DECLARE_ISR(serial)
 {
     _serial_callback();
 }
@@ -34,7 +30,6 @@ extern "C" void serial_callback(void)
 KLegacyUart::KLegacyUart(uint8_t uart_idx)
 {
     this->uart_idx = uart_idx;
-    this->interrupts_count = 0;
 
     outportb(uart_ports[uart_idx] + 1, 0x01);    // Enable only Rx
     outportb(uart_ports[uart_idx] + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -45,7 +40,7 @@ KLegacyUart::KLegacyUart(uint8_t uart_idx)
     outportb(uart_ports[uart_idx] + 4, 0x0B);    // IRQs enabled, RTS/DSR set
 
     KIInterruptManager *kim = GetInterruptManager();
-    kim->add_irq_handler(4, serial_isr);
+    kim->add_irq_handler(4, GET_ISR_NAME(serial));
     port0 = this;
 }
 

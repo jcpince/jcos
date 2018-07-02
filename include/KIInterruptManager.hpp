@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#define GET_ISR_NAME(name) isr_##name
+#define DECLARE_ISR(name)               \
+    extern "C" void isr_##name(void);   \
+    extern "C" void callback_##name(void)
+
 typedef void (*kinterrupt_handler_t) (void);
 
 /*

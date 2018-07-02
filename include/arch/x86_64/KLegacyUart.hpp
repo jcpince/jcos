@@ -10,7 +10,7 @@ class KLegacyUart
 {
 private:
     uint8_t     uart_idx;
-    uint32_t    interrupts_count;
+
 protected:
     bool is_byte_available();
     bool is_write_done();
@@ -21,9 +21,6 @@ public:
 
 	uint8_t readb();
     void writeb(uint8_t byte);
-
-    uint8_t interrupt_identification_register;
-    uint32_t get_interrupts_count() {return interrupts_count;}
 
     friend void _serial_callback(void);
 };
