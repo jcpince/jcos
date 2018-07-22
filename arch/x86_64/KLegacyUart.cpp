@@ -3,7 +3,9 @@
 
 #include "KInterruptManager.hpp"
 
+#include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <asmf.H>
 
 static constexpr uint16_t uart_ports[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
@@ -68,4 +70,27 @@ void KLegacyUart::writeb(uint8_t byte)
 {
    while (is_write_done() == 0);
    outportb(uart_ports[uart_idx], byte);
+}
+
+void KLegacyUart::writes(const char *s)
+{
+    while(*s)
+        writeb(*s++);
+}
+
+void KLegacyUart::printf(const char *fmt, ...)
+{
+	va_list args;
+	char printbuffer[CFG_PBSIZE];
+
+	va_start (args, fmt);
+
+	/* For this to work, printbuffer must be larger than
+	 * anything we ever want to print.
+	 */
+	vsprintf (printbuffer, fmt, args);
+	va_end (args);
+
+	/* Print the string */
+    writes(&printbuffer[0]);
 }

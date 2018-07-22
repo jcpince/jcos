@@ -21,6 +21,8 @@ public:
 
 	uint8_t readb();
     void writeb(uint8_t byte);
+    void writes(const char *s);
+    void printf(const char *fmt, ...);
 
     friend void _serial_callback(void);
 };
