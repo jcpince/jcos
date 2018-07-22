@@ -9,7 +9,7 @@ endif()
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 
 # Define features here
-#set(MEMORY_ALLOCATOR "dlmalloc")
+set(MEMORY_ALLOCATOR "dlmalloc")
 
 set(_CMAKE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})

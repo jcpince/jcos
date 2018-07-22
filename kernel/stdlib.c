@@ -22,9 +22,6 @@ void abort(void)
 }
 
 #if !defined(USE_DLMALLOC)
-#define MALLOC_BUFFER_SIZE	4*MB
-static char malloc_buffer[MALLOC_BUFFER_SIZE];
-
 void *malloc(size_t size)
 {
 	static addr_t freeMemoryBase = (addr_t)malloc_buffer;
