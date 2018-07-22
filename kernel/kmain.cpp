@@ -5,6 +5,7 @@
 #include <KOStream.hpp>
 #include <MyClass.hpp>
 
+#include <mem/dlmalloc.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -71,15 +72,51 @@ extern "C" void page_fault_callback(uint64_t bad_address, uint64_t fault_pc, uin
 	while(1);
 }
 
+static void show_malloc_stats(KLegacyUart &uart)
+{
+    struct mallinfo mi = mallinfo();
+    uart.printf("******************************************\n");
+    uart.printf("Malloc stats:\n");
+    uart.printf("Non-mmapped space allocated (bytes):           0x%08x\n", mi.arena);
+    uart.printf("Number of free chunks:                         0x%08x\n", mi.ordblks);
+    uart.printf("Number of free fastbin blocks:                 0x%08x\n", mi.smblks);
+    uart.printf("Number of mmapped regions:                     0x%08x\n", mi.hblks);
+    uart.printf("Space allocated in mmapped regions (bytes):    0x%08x\n", mi.hblkhd);
+    uart.printf("Maximum total allocated space (bytes):         0x%08x\n", mi.usmblks);
+    uart.printf("Space in freed fastbin blocks (bytes):         0x%08x\n", mi.fsmblks);
+    uart.printf("Total allocated space (bytes):                 0x%08x\n", mi.fordblks);
+    uart.printf("Top-most, releasable space (bytes):            0x%08x\n", mi.keepcost);
+    uart.printf("******************************************\n");
+}
+
+KLegacyUart *kernel_console = (KLegacyUart *)NULL;
+
+extern "C" void kprintk (const char *fmt, ...)
+{
+    va_list args;
+	char printbuffer[CFG_PBSIZE];
+
+	va_start (args, fmt);
+
+	/* For this to work, printbuffer must be larger than
+	 * anything we ever want to print.
+	 */
+	vsprintf (printbuffer, fmt, args);
+	va_end (args);
+    if (kernel_console)
+        kernel_console->writes(printbuffer);
+    kstd::kout << printbuffer;
+}
+
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
     /* Shall be called early on to allow interrupts */
     KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
+    KLegacyUart ttyS0(0);
+    kernel_console = &ttyS0;
 
 	Myclass c;
-	uint64_t count = 0;
-    KLegacyUart ttyS0(0);
 
 	kstd::kout.SetTextColour(BLACK);
 	kstd::kout.SetBackColour(WHITE);
@@ -128,11 +165,9 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		delete mbmgr;
 	}
 
-    uint32_t *allocated_data = (uint32_t *)malloc(100*sizeof(uint32_t));
-    kstd::kout.printf("allocated_data: %p\n", allocated_data);
-    allocated_data[0] = 20;
-    kstd::kout.printf("allocated_data[0]: %u\n", allocated_data[0]);
+    show_malloc_stats(ttyS0);
 
+    uint64_t count = 0;
 	try
 	{
 		c.test_throw();
@@ -162,16 +197,16 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout << _L("That's all folks!!") << kstd::endl;
 
     /* Go to sleep mode... */
-    kstd::kout.printf("&_start      0x%lx\n", &_start);
-    kstd::kout.printf("&_heap_start 0x%lx\n", &_heap_start);
+    kprintk("&_start      0x%lx\n", &_start);
+    kprintk("&_heap_start 0x%lx\n", &_heap_start);
     uint32_t stack_int;
-    kstd::kout.printf("&stack_int   0x%lx\n", &stack_int);
-    kstd::kout.printf("kim          %p\n", kim);
+    kprintk("&stack_int   0x%lx\n", &stack_int);
+    kprintk("kim          %p\n", kim);
     while(1)
     {
-        printk("Entering sleep...\n");
+        kprintk("Entering sleep...\n");
         __asm__("hlt");
-        printk("Woken\n");
+        kprintk("Woken\n");
     }
 
 	/* Test the crash handler

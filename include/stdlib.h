@@ -9,6 +9,12 @@ extern "C" {
 
 #define NULL ((void*)0)
 
+void kprintk (const char *fmt, ...);
+
+void* sbrk(ptrdiff_t size);
+
+void print_backtrace(void);
+
 void abort(void);
 
 void *malloc(size_t size);

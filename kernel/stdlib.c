@@ -15,9 +15,40 @@
 
 int errno = 0;
 
+#include <unwind-generic.h>
+static _Unwind_Reason_Code trace(struct _Unwind_Context *context, void __attribute__((unused)) *param)
+{
+	void *ip = (void*)_Unwind_GetIP(context);
+	kprintk("%p\n", ip);
+	return _URC_CONTINUE_UNWIND;
+}
+
+void print_backtrace(void)
+{
+    kprintk("bactrace:\n");
+    _Unwind_Backtrace(trace, 0);
+    kprintk("end of bactrace\n");
+}
+
+#define MALLOC_BUFFER_SIZE	4*MB
+uint8_t malloc_buffer[MALLOC_BUFFER_SIZE];
+
+void* sbrk(ptrdiff_t size)
+{
+    static uint8_t *current = &malloc_buffer[0];
+    static uint8_t *max = &malloc_buffer[MALLOC_BUFFER_SIZE];
+    uint8_t *old = current;
+    if ((current + size) < max)
+        current += size;
+    else
+        current = max;
+    return old;
+}
+
 void abort(void)
 {
-    printk("Aborting!");
+    kprintk("Aborting!\n");
+    print_backtrace();
 	while(1);
 }
 
