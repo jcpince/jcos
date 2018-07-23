@@ -113,6 +113,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
     /* Shall be called early on to allow interrupts */
     KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
+	kim->add_interrupt_handler(14, page_fault_isr);
     KLegacyUart ttyS0(0);
     kernel_console = &ttyS0;
 
@@ -185,7 +186,6 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kim->add_interrupt_handler(1, GET_ISR_NAME(int1));
 	kim->add_interrupt_handler(2, GET_ISR_NAME(int2));
 	kim->add_interrupt_handler(3, GET_ISR_NAME(int3));
-	kim->add_interrupt_handler(14, page_fault_isr);
     kim->add_irq_handler(KEYBOARD_IRQ_NUMBER, GET_ISR_NAME(keyboard));
 	kim->enableall();
 
