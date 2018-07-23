@@ -20,12 +20,7 @@ include(${_CMAKE_ROOT}/macros.cmake)
 include(${_CMAKE_ROOT}/flags.cmake)
 include(${_CMAKE_ROOT}/sources.cmake)
 
-foreach(SRC ${PROJECT_SRC})
-  message("Compiling: " ${SRC})
-endforeach()
-
 foreach(INC ${PROJECT_INCLUDES})
-  message("Adding include directory: " ${INC})
   include_directories(${INC})
 endforeach()
 
@@ -64,7 +59,7 @@ add_custom_target(qemu-cd-dbg
     if EARLYDBG is set, then, break and enter \"set \$pc=\$pc+2\" to leave the loop
     Then, enter \"b kmain\" to break from the very first instruction
     Finally, enter \"continue\" to continue the execution flow"
-	COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -s -monitor stdio
+	COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -s -serial mon:stdio
     DEPENDS ${PROJECT_NAME}.elf
 )
 
