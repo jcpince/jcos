@@ -14,6 +14,8 @@ append_list(PROJECT_SRC
     ${_SRC_ROOT}/kernel/KMultibootManager2.cpp
     ${_SRC_ROOT}/kernel/MyClass.cpp
     ${_SRC_ROOT}/arch/x86_64/KInterruptManager.cpp
+    ${_SRC_ROOT}/arch/x86_64/KVirtualMemoryManager.cpp
+    ${_SRC_ROOT}/arch/x86_64/KCpuHelper.cpp
 )
 
 # Standard libc

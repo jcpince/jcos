@@ -1,5 +1,7 @@
 #include <init/KMultibootManagerFactory.hpp>
+#include <mem/KIVirtualMemoryManager.hpp>
 #include <arch/x86_64/KLegacyUart.hpp>
+#include <arch/x86_64/KCpuHelper.hpp>
 #include <kernel/KMemoryManager.hpp>
 #include <KIInterruptManager.hpp>
 #include <KOStream.hpp>
@@ -111,6 +113,7 @@ extern "C" void kprintk (const char *fmt, ...)
 extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 {
     /* Shall be called early on to allow interrupts */
+    KIVirtualMemoryManager *kvmem = GetVirtualMemoryManager();
     KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
 	kim->add_interrupt_handler(14, page_fault_isr);
@@ -123,14 +126,14 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 	kstd::kout.SetBackColour(WHITE);
 	kstd::kout.clear();
 
-	kstd::kout.printf("sizeof(unsigned long): %d\n", sizeof(unsigned long));
+    kvmem->dump_virtual_mapping();
 
 	//while(dbg);
 
 	KIMultibootManager *mbmgr = kmmf.getMultibootMgr(bootloader_magic, (addr_t)mbi);
 	if (!mbmgr)
 	{
-		kstd::kout.printf("Was not able to get a multi-boot manager with magic 0x%x\n", bootloader_magic);
+		kprintk("Was not able to get a multi-boot manager with magic 0x%x\n", bootloader_magic);
 	}
 	else
 	{
@@ -138,19 +141,19 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
         kusable_memory_region_t *region = &regions[0];
 		while (region->size != 0)
 		{
-			kstd::kout.printf("Found a region from 0x%lx to 0x%lx -- size ",
+			kprintk("Found a region from 0x%lx to 0x%lx -- size ",
                     region->base_address, region->base_address + region->size);
 			if (region->size > GB) {
-				kstd::kout.printf("%d GiB\n", region->size/GB);
+				kprintk("%d GiB\n", region->size/GB);
 			}
 			else if (region->size > MB) {
-				kstd::kout.printf("%d MiB\n", region->size/MB);
+				kprintk("%d MiB\n", region->size/MB);
 			}
 			else if (region->size > KB) {
-				kstd::kout.printf("%d KiB\n", region->size/KB);
+				kprintk("%d KiB\n", region->size/KB);
 			}
 			else {
-				kstd::kout.printf("%d Bytes\n", region->size);
+				kprintk("%d Bytes\n", region->size);
 			}
 			region++;
 		}
