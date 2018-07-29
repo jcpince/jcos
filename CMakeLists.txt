@@ -34,8 +34,13 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf
     DEPENDS ${PROJECT_NAME}.elf ${CMAKE_CURRENT_SOURCE_DIR}/res/grub.cfg
 )
 
-add_custom_target(qemu-cd-serial
+add_custom_target(qemu-cd-serial-graphic
     COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -serial stdio
+    DEPENDS ${PROJECT_NAME}.elf
+)
+
+add_custom_target(qemu-cd-serial
+    COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -serial mon:stdio -nographic
     DEPENDS ${PROJECT_NAME}.elf
 )
 
@@ -49,6 +54,21 @@ add_custom_target(bochs-cd-test
     DEPENDS ${PROJECT_NAME}.elf
 )
 
+add_custom_target(qemu-cd-dbg-graphic
+    COMMAND xterm -T "GDB client" -e gdb ${PROJECT_NAME}.elf &
+	COMMENT "
+    Set the architecture to i386 before establishing the connection
+    Enter \"target remote :1234\" in the gdb prompt to connect the target
+    When the x86-64 code is reached, set back the architecture to i386:x86-64
+    Then, enter \"continue\" to continue the execution flow until it reached the loop in start.S
+    if EARLYDBG is set, then, break and enter \"set \$pc=\$pc+2\" to leave the loop
+    Then, enter \"b kmain\" to break from the very first instruction
+    Finally, enter \"continue\" to continue the execution flow
+    Enter Ctrl+a c to enter the Qemu interqctive shell."
+	COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -s -serial mon:stdio
+    DEPENDS ${PROJECT_NAME}.elf
+)
+
 add_custom_target(qemu-cd-dbg
     COMMAND xterm -T "GDB client" -e gdb ${PROJECT_NAME}.elf &
 	COMMENT "
@@ -58,8 +78,9 @@ add_custom_target(qemu-cd-dbg
     Then, enter \"continue\" to continue the execution flow until it reached the loop in start.S
     if EARLYDBG is set, then, break and enter \"set \$pc=\$pc+2\" to leave the loop
     Then, enter \"b kmain\" to break from the very first instruction
-    Finally, enter \"continue\" to continue the execution flow"
-	COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -s -serial mon:stdio
+    Finally, enter \"continue\" to continue the execution flow
+    Enter Ctrl+a c to enter the Qemu interqctive shell."
+	COMMAND qemu-system-x86_64 -cdrom ${PROJECT_NAME}.iso -m 512 -s -serial mon:stdio -nographic
     DEPENDS ${PROJECT_NAME}.elf
 )
 
