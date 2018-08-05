@@ -110,6 +110,9 @@ extern "C" void kprintk (const char *fmt, ...)
     kstd::kout << printbuffer;
 }
 
+#define MALLOC_BUFFER_SIZE	4*MB
+extern uint8_t malloc_buffer[];
+
 extern "C" void kmain(addr_t mbi, uint32_t bootloader_magic)
 {
     /* Shall be called early on to allow interrupts */
@@ -121,13 +124,15 @@ extern "C" void kmain(addr_t mbi, uint32_t bootloader_magic)
     KLegacyUart ttyS0(0);
     kernel_console = &ttyS0;
 
+	kprintk("malloc_buffer ranges from %p to 0x%016lx\n", malloc_buffer, (addr_t)malloc_buffer + MALLOC_BUFFER_SIZE);
+
 	Myclass c;
 
 	kstd::kout.SetTextColour(BLACK);
 	kstd::kout.SetBackColour(WHITE);
 	kstd::kout.clear();
 
-    kvmem->dump_virtual_mapping();
+    kvmem->dump_virtual_mapping(/*VM_DUMP_TABLES*/);
 
 	//while(dbg);
 

@@ -5,140 +5,147 @@
 
 /* Multiboot2 header */
 MULTIBOOT2_HEADER:
-	.align 4
-	.long MB2_HDR_MAGIC
-	.long MB2_ARCH
-	.long MB2_HEADERLEN
-	.long MB2_CHECKSUM
-	.long 0
-	.long 0
+    .align 4
+    .long MB2_HDR_MAGIC
+    .long MB2_ARCH
+    .long MB2_HEADERLEN
+    .long MB2_CHECKSUM
+    .long 0
+    .long 0
 
 /* Stack buffer */
-.comm stack, STACKSIZE, 32		/* reserve 16k stack on a quadword boundary */
+.comm stack, STACKSIZE, 32                  /* reserve 16k stack on a quadword boundary */
 
 /* 32-bit entry point */
 .globl loader32
 loader32:
 #if (EARLYDBG == 1)
-1:	jmp 1b
+1:  jmp 1b
 #endif
-	mov $(stack_phys + STACKSIZE), %esp	# set up the stack on top of the buffer reserved for it
-	push  %eax			# Multiboot magic number
-	push  %ebx 			# Multiboot data structure address
 
-//1:	jmp 1b
+    mov $(stack_phys + STACKSIZE), %esp     /* set up the stack on top of the buffer reserved for it */
+    push  %eax                              /* Multiboot magic number */
+    push  %ebx                              /* Multiboot data structure address */
 
-	call asm_check_cpuid
-	jc cpuid_not_supported
+#if (EARLYDBG == 2)
+1:  jmp 1b
+#endif
 
-	call asm_check_longmode
-	jc lm_not_supported
+    call asm_check_cpuid
+    jc cpuid_not_supported
 
-	/* Will never return from long mode */
-	jmp activate_long_mode
+    call asm_check_longmode
+    jc lm_not_supported
 
-	/* But just in case... */
-	jmp lm_not_supported
+    /* Will never return from long mode */
+    jmp activate_long_mode
+
+    /* But just in case... */
+    jmp lm_not_supported
 
 asm_check_cpuid:
-	pushf				/* push the EFLAGS in the stack */
-	pop %eax			/* Get the EFLAGS into eax */
-	mov %eax, %ecx			/* Backup original EFLAGS into ecx */
-	xor $(1 << EFLAGS_IDBIT), %eax	/* Invert the bit ID in EFLAGS */
-	push %eax
-	popf 				/* Restaure the new EFLAGS */
+    pushf                                   /* push the EFLAGS in the stack */
+    pop %eax                                /* Get the EFLAGS into eax */
+    mov %eax, %ecx                          /* Backup original EFLAGS into ecx */
+    xor $(1 << EFLAGS_IDBIT), %eax          /* Invert the bit ID in EFLAGS */
+    push %eax
+    popf                                    /* Restaure the new EFLAGS */
 
-	pushf
-	pop %eax
-	xor %ecx, %eax			/* Verify that ID-bit changed */
-	shr $EFLAGS_IDBIT, %eax		/* Shift the ID-bit so it becomes the bit 0 */
-	and $1, %eax			/* Check if the bit 0 is set */
-	push %ecx			/* restaure original EFLAGS */
-	popf
+    pushf
+    pop %eax
+    xor %ecx, %eax                          /* Verify that ID-bit changed */
+    shr $EFLAGS_IDBIT, %eax                 /* Shift the ID-bit so it becomes the bit 0 */
+    and $1, %eax                            /* Check if the bit 0 is set */
+    push %ecx                               /* restaure original EFLAGS */
+    popf
 
-	test %eax, %eax			/* test the bit 0 */
-	je .bad_cpu
-	ret
+    test %eax, %eax                        /* test the bit 0 */
+    je .bad_cpu
+    ret
 .bad_cpu:
-	stc
-	ret
+    stc
+    ret
 
 asm_check_longmode:
-	/* Call CPUID so that we check that the PROCINFO function is supported by CPUID */
-	mov $CPUID_HIGHESTFUNC, %eax
-	cpuid
+    /* Call CPUID so that we check that the PROCINFO function is supported by CPUID */
+    mov $CPUID_HIGHESTFUNC, %eax
+    cpuid
 
-	/* Compare the highest function with PROCINFO */
-	cmp $CPUID_PROCINFO, %eax
-	jb .no_procinf
+    /* Compare the highest function with PROCINFO */
+    cmp $CPUID_PROCINFO, %eax
+    jb .no_procinf
 
-	/* Call CPUID with PROCINFO */
-	mov $CPUID_PROCINFO, %eax
-	cpuid
-	test $(1 << CPUID_PROCINFO_LM_BIT), %edx
-	jz .no_lm
-	ret
+    /* Call CPUID with PROCINFO */
+    mov $CPUID_PROCINFO, %eax
+    cpuid
+    test $(1 << CPUID_PROCINFO_LM_BIT), %edx
+    jz .no_lm
+    ret
 .no_lm:
 .no_procinf:
-	stc
-	ret
+    stc
+    ret
 
 cpuid_not_supported:
-	jmp cpuid_not_supported
+    jmp cpuid_not_supported
 
 lm_not_supported:
-	jmp lm_not_supported
+    jmp lm_not_supported
 
 activate_long_mode:
-	/* 32-bit to 64-bit code						*/
-	/* 1. Have paging disabled						*/
-	mov %cr0, %eax			/* Deactivate long mode */
-	and $0x7fffffff, %eax		/* by disabling paging. */
-	mov %eax, %cr0
+    /* 32-bit to 64-bit code */
+    /* 1. Have paging disabled */
+    mov %cr0, %eax                          /* Deactivate long mode */
+    and $0x7fffffff, %eax                   /* by disabling paging. */
+    mov %eax, %cr0
 
-	/* Put EDI on the buffer reserved for PML4/PDP/PD and PT */
-	mov $(phys_pml4_start), %edi
-	/* Since we are doing a rep stosl, count should be bytes/4 */
-    	push %edi                           /* REP STOSD alters EDI */
-    	mov $(4*KB), %ecx
-    	xor %eax, %eax
-    	rep stosl				/* clear the PML4 */
-   	pop %edi                            /* Get EDI back with the address of PML4 */
+    /* Put EDI on the buffer reserved for PML4/PDP/PD and PT */
+    mov $(phys_pml4_start), %edi
+    /* Since we are doing a rep stosl, count should be bytes/4 */
+    push %edi                               /* REP STOSD alters EDI */
+    mov $(4*KB), %ecx
+    xor %eax, %eax
+    rep stosl                               /* clear the PML4 */
+    pop %edi                                /* Get EDI back with the address of PML4 */
 
-//1:	jmp 1b
+#if (EARLYDBG == 3)
+1:	jmp 1b
+#endif
 
-   	/* 3. Load CR3 with the physical address of the PML4			*/
-	mov %edi, %cr3			/* Point CR3 at the PML4.*/
+    /* 3. Load CR3 with the physical address of the PML4 */
+    mov %edi, %cr3                          /* Point CR3 at the PML4. */
 
-	/* Build Page Map Level 4 */
-	/* Mapping of the linear addresses 0 -> 0x7FFFFFFFFF to the physical memory */
-    	lea 0x1000(%edi), %eax		       /* Put the address of the Page Directory Pointer Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax  /* Or EAX with the flags - present flag, writable flag */
-    	mov %eax, %es:(%edi)			/* Store the value of EAX as the first PML4 entry */
-    	mov %eax, (0x1FF*8)(%edi)		/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
+    /* Build Page Map Level 4 */
+    /* Mapping of the linear addresses 0 -> 0x0 to the physical memory */
+    lea PML4_TABLE_SIZE(%edi), %eax         /* Put the address of the Page Directory Pointer Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:(%edi)                    /* Store the value of EAX as the first PML4 entry */
+    mov %eax, (0x1FF*8)(%edi)               /* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
 
-	/* Build the Page Directory Pointer */
-    	lea 0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    	mov %eax, %es:0x1000(%edi)		/* Store the value of EAX as the first PDPT entry */
-    	mov %eax, (0x1FE*8+0x1000)(%edi)	/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
-    	mov %eax, (0x2*8+0x1000)(%edi)		/* Set the same ptr for the addresses 0x0000000080100000 */
+    /* Build the Page Directory Pointer */
+    lea 0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x1000(%edi)		/* Store the value of EAX as the first PDPT entry */
+    mov %eax, (0x1FE*8+0x1000)(%edi)	/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
+    mov %eax, (0x2*8+0x1000)(%edi)		/* Set the same ptr for the addresses 0x0000000080100000 */
 
-	/* Build the Page Directory */
-    	lea 0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    	mov %eax, %es:0x2000(%edi)		/* Store the value of EAX as the first PD entry */
-    	mov %eax, (0x8*8+0x2000)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    	lea 0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    	mov %eax, %es:0x2008(%edi)		/* Store the value of EAX as the first PD entry */
-    	mov %eax, (0x8*8+0x2008)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    	lea 0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    	mov %eax, %es:0x2010(%edi)		/* Store the value of EAX as the first PD entry */
-    	mov %eax, (0x8*8+0x2010)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    /* Build the Page Directory */
+    lea 0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2000(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2000)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    lea 0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2008(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2008)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    lea 0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2010(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2010)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
 
-//1:	jmp 1b
+#if (EARLYDBG == 4)
+1:	jmp 1b
+#endif
 
 	/* Build the page table */
 	push %edi				/* Save EDI so we can set CR3 later on */
@@ -171,7 +178,9 @@ activate_long_mode:
 	jb 1b
 	pop %edi				/* Restore EDI which contains PML4 base address */
 
-//1:	jmp 1b
+#if (EARLYDBG == 5)
+1:	jmp 1b
+#endif
 
 	/* Disable PIC 16 interrupts */
 	mov $0xff, %al
@@ -223,31 +232,31 @@ GDT.Pointer:
 .code64
 .align 4
 LongMode:
-	/* We are now in LongMode,
-	  we can setup the segments and call the
-	  kernel main */
-	mov $0x0010, %ax
-	mov %ax, %ds
-	mov %ax, %es
-	mov %ax, %fs
-	mov %ax, %gs
-	mov $0x0018, %ax
-	mov %ax, %ss
+    /* We are now in LongMode,
+      we can setup the segments and call the
+      kernel main */
+    mov $0x0010, %ax
+    mov %ax, %ds
+    mov %ax, %es
+    mov %ax, %fs
+    mov %ax, %gs
+    mov $0x0018, %ax
+    mov %ax, %ss
 
-	callq map_virtual_memory64
+    /* callq map_virtual_memory64 */
 
-	/* jmp and not push so that the stack is not modified */
-	movabsq $kernel_start64, %rax
-	jmp *%rax
+    /* jmp and not push so that the stack is not modified */
+    movabsq $kernel_start64, %rax
+    jmp *%rax
 
-	/* Should never arrive here but just in case */
-	cli
+    /* Should never arrive here but just in case */
+    cli
 hang:
-	hlt					# halt machine should kernel return
-	jmp   hang
+    hlt					# halt machine should kernel return
+    jmp   hang
 
-map_virtual_memory64:
 #if 0
+map_virtual_memory64:
 1:	jmp 1b
 	mov $(phys_pml4_start), %rdi
 	/* Build Page Map Level 4 for the virtual memory used by our kernel */
@@ -281,5 +290,5 @@ map_virtual_memory64:
 	add %rbx, %rdi
 	add $0x6000, %rdi
     	mov %rax, (%rdi)			/* Store the value of EAX as the first PML4 entry */
-#endif
 	retq
+#endif

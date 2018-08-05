@@ -39,7 +39,7 @@ typedef uint32_t					ptrdiff_t;
 typedef uint32_t					addr_t;
 #endif
 
-#define KB	(1024)
+#define KB	(1024UL)
 #define MB	(KB*KB)
 #define GB	(MB*KB)
 

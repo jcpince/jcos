@@ -83,7 +83,7 @@ public:
     KVirtualMemoryManager();
     ~KVirtualMemoryManager();
 
-    void dump_virtual_mapping();
+    void dump_virtual_mapping(vmap_verbosity_t verbosity);
     void dump_cr3_decoded(cr3_t *cr3);
     void dump_pml4_decoded(pml4e_t *pml4e, uint32_t index);
     void dump_pdpte_decoded(pdpte_t *pdpte, uint32_t index);

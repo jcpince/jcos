@@ -3,10 +3,17 @@
 
 #include <stdint.h>
 
+typedef enum
+{
+    VM_DUMP_MAPPING_ONLY,
+    VM_DUMP_TABLES,
+    VM_DUMP_TABLES_DUPLICATES,
+} vmap_verbosity_t;
+
 class KIVirtualMemoryManager
 {
 public:
-    virtual void dump_virtual_mapping() = 0;
+    virtual void dump_virtual_mapping(vmap_verbosity_t verbosity = VM_DUMP_MAPPING_ONLY) = 0;
     virtual addr_t virt2phys(void *vaddr) = 0;
     virtual void *phys2virt(addr_t paddr) = 0;
 

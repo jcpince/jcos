@@ -6,8 +6,10 @@ extern const uint64_t KERNEL_VIRT_ADDR;
 extern const uint64_t KERNEL_PHYS_MASK;
 extern const uint64_t KERNEL_PHYS_ADDR;
 
-#define LINEAR_0_OFFSET ((uint64_t)&KERNEL_VIRT_ADDR)
-#define LINEAR_MASK     ((uint64_t)&KERNEL_PHYS_MASK)
+#define LINEAR_0_OFFSET         ((uint64_t)&KERNEL_VIRT_ADDR)
+#define LINEAR_MASK             ((uint64_t)&KERNEL_PHYS_MASK)
+#define MAPPING_TABLES_SIZE     512UL
+#define PHYS_PAGE_GRANULARITY   (4UL * KB)
 
 KIVirtualMemoryManager *GetVirtualMemoryManager()
 {
@@ -30,28 +32,28 @@ KVirtualMemoryManager::~KVirtualMemoryManager()
 void KVirtualMemoryManager::dump_cr3_decoded(cr3_t *cr3)
 {
     kprintk("CR3: PWT(%d), PCD(%d), pml4_phys_address(0x%016lx)\n",
-        cr3->pwt, cr3->pcd, cr3->pml4_phys_4k*4*KB);
+        cr3->pwt, cr3->pcd, cr3->pml4_phys_4k*PHYS_PAGE_GRANULARITY);
 }
 
 void KVirtualMemoryManager::dump_pml4_decoded(pml4e_t *pml4e, uint32_t index)
 {
     kprintk("pml4(%p): index 0x%03x, P(%d), R/W(%d), U/S(%d), PWT(%d), PCD(%d), A(%d), XD(%d), pdpt_phys_address(0x%016x)\n",
         pml4e, index, pml4e->present, pml4e->writeable, pml4e->user_acess, pml4e->pwt,
-        pml4e->pcd, pml4e->accessed, pml4e->execute_dis, pml4e->pdpt_phys_4k*4*KB);
+        pml4e->pcd, pml4e->accessed, pml4e->execute_dis, pml4e->pdpt_phys_4k*PHYS_PAGE_GRANULARITY);
 }
 
 void KVirtualMemoryManager::dump_pdpte_decoded(pdpte_t *pdpte, uint32_t index)
 {
     kprintk("pdpte(%p): index 0x%03x, P(%d), R/W(%d), U/S(%d), PWT(%d), PCD(%d), A(%d), PS(%d), XD(%d), pd_phys_address(0x%016x)\n",
         pdpte, index, pdpte->present, pdpte->writeable, pdpte->user_acess, pdpte->pwt,
-        pdpte->pcd, pdpte->accessed, pdpte->page_size, pdpte->execute_dis, pdpte->subt_phys_4k*4*KB);
+        pdpte->pcd, pdpte->accessed, pdpte->subt_phys_4k, pdpte->execute_dis, pdpte->subt_phys_4k*PHYS_PAGE_GRANULARITY);
 }
 
 void KVirtualMemoryManager::dump_pde_decoded(pde_t *pde, uint32_t index)
 {
     kprintk("pde(%p): index 0x%03x, P(%d), R/W(%d), U/S(%d), PWT(%d), PCD(%d), A(%d), PS(%d), XD(%d), pt_phys_address(0x%016x)\n",
         pde, index, pde->present, pde->writeable, pde->user_acess, pde->pwt,
-        pde->pcd, pde->accessed, pde->page_size, pde->execute_dis, pde->subt_phys_4k*4*KB);
+        pde->pcd, pde->accessed, pde->subt_phys_4k, pde->execute_dis, pde->subt_phys_4k*PHYS_PAGE_GRANULARITY);
 }
 
 void KVirtualMemoryManager::dump_pte_decoded(pte_t *pte, uint32_t index)
@@ -59,10 +61,10 @@ void KVirtualMemoryManager::dump_pte_decoded(pte_t *pte, uint32_t index)
     kprintk("pte(%p): index 0x%03x, P(%d), R/W(%d), U/S(%d), PWT(%d), PCD(%d), A(%d), DIRTY(%d), PAT(%d), GLOB(%d), PROTK(%d), XD(%d), page_phys_address(0x%016x)\n",
         pte, index, pte->present, pte->writeable, pte->user_acess, pte->pwt,
         pte->pcd, pte->accessed, pte->dirty, pte->pat, pte->global,
-        pte->protection_key, pte->execute_dis, pte->page_phys_4k*4*KB);
+        pte->protection_key, pte->execute_dis, pte->page_phys_4k*PHYS_PAGE_GRANULARITY);
 }
 
-void KVirtualMemoryManager::dump_virtual_mapping()
+void KVirtualMemoryManager::dump_virtual_mapping(vmap_verbosity_t verbosity)
 {
     kprintk("Virtual memory mapping:\n");
     kprintk("KERNEL_VIRT_ADDR: %p\n", &KERNEL_VIRT_ADDR);
@@ -88,109 +90,113 @@ void KVirtualMemoryManager::dump_virtual_mapping()
     kprintk("lin_address_size:    %02d\n", lin_address_size);
     cr3_t *pcr3 = (cr3_t *)&cr3;
     dump_cr3_decoded(pcr3);
-    pml4e_t *pml4e = (pml4e_t *)phys2virt(pcr3->pml4_phys_4k * 4 * KB);
-    virtual_address_t current_address_, *current_address = &current_address_;
-    uint64_t *page_start = (uint64_t *)current_address, section_start = 0, previous_page_end = 0;
-    uint64_t min_address = pcr3->pml4_phys_4k * 4 * KB, max_address = pcr3->pml4_phys_4k * 4 * KB;
-    for (uint32_t idx = 0 ; idx < 512 ; idx++, pml4e++)
+    pml4e_t *pml4e = (pml4e_t *)phys2virt(pcr3->pml4_phys_4k * PHYS_PAGE_GRANULARITY);
+
+    /* stats */
+    virtual_address_t v_, *virt_address = &v_;
+    uint64_t *virt_addr64 = (uint64_t*)virt_address;
+    uint64_t section_phys_start = 0, section_virt_start = 0, section_size = 0;
+    uint64_t min_tables_address = ~0UL, max_tables_address = 0;
+    virt_address->offset = 0;
+
+    for (uint32_t idx = 0 ; idx < MAPPING_TABLES_SIZE ; idx++, pml4e++)
     {
         if (!pml4e->present) continue;
-        if (pml4e->ignored)
-        {
-            kprintk("pml4e(%p) already dumped.\n", pml4e);
-            continue;
-        }
-        current_address->pml4e = idx;
+        virt_address->pml4e = idx;
+        if (idx > 0x100) virt_address->lastbitrepeat = 0xffff;
+        else virt_address->lastbitrepeat = 0x0;
+        if (verbosity == VM_DUMP_TABLES_DUPLICATES ||
+            (!pml4e->ignored && verbosity == VM_DUMP_TABLES))
+            dump_pml4_decoded(pml4e, idx);
         pml4e->ignored = 1;
-        dump_pml4_decoded(pml4e, idx);
-        min_address = min(min_address, pml4e->pdpt_phys_4k * 4U * KB);
-        max_address = max(max_address, pml4e->pdpt_phys_4k * 4U * KB);
-        pdpte_t *pdpte = (pdpte_t *)phys2virt(pml4e->pdpt_phys_4k * 4U * KB);
-        for (uint32_t jdx = 0 ; jdx < 512 ; jdx++, pdpte++)
+        min_tables_address = min(min_tables_address, pml4e->pdpt_phys_4k * PHYS_PAGE_GRANULARITY);
+        max_tables_address = max(max_tables_address, pml4e->pdpt_phys_4k * PHYS_PAGE_GRANULARITY);
+        pdpte_t *pdpte = (pdpte_t *)phys2virt(pml4e->pdpt_phys_4k * PHYS_PAGE_GRANULARITY);
+        for (uint32_t jdx = 0 ; jdx < MAPPING_TABLES_SIZE ; jdx++, pdpte++)
         {
             if (!pdpte->present) continue;
-            if (pdpte->ignored)
-            {
-                kprintk("pdpte(%p) already dumped.\n", pdpte);
-                continue;
-            }
-            current_address->pdpte = jdx;
+            virt_address->pdpte = jdx;
+            if (verbosity == VM_DUMP_TABLES_DUPLICATES ||
+                (!pdpte->ignored && verbosity == VM_DUMP_TABLES))
+                dump_pdpte_decoded(pdpte, jdx);
             pdpte->ignored = 1;
-            dump_pdpte_decoded(pdpte, jdx);
-            min_address = min(min_address, pdpte->subt_phys_4k * 4U * KB);
-            max_address = max(max_address, pdpte->subt_phys_4k * 4U * KB);
-            pde_t *pde = (pde_t *)phys2virt(pdpte->subt_phys_4k * 4U * KB);
-            for (uint32_t kdx = 0 ; kdx < 512 ; kdx++, pde++)
+            min_tables_address = min(min_tables_address, pdpte->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+            max_tables_address = max(max_tables_address, pdpte->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+            pde_t *pde = (pde_t *)phys2virt(pdpte->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+            for (uint32_t kdx = 0 ; kdx < MAPPING_TABLES_SIZE ; kdx++, pde++)
             {
                 if (!pde->present) continue;
-                if (pde->ignored)
-                {
-                    //kprintk("pde(%p) already dumped.\n", pde);
-                    continue;
-                }
-                current_address->pde = kdx;
+                virt_address->pde = kdx;
+                if (verbosity == VM_DUMP_TABLES_DUPLICATES ||
+                    (!pde->ignored && verbosity == VM_DUMP_TABLES))
+                    dump_pde_decoded(pde, kdx);
                 pde->ignored = 1;
-                dump_pde_decoded(pde, kdx);
-                min_address = min(min_address, pde->subt_phys_4k * 4U * KB);
-                max_address = max(max_address, pde->subt_phys_4k * 4U * KB);
-                pte_t *pte = (pte_t *)phys2virt(pde->subt_phys_4k * 4U * KB);
-                for (uint32_t ldx = 0 ; ldx < 512 ; ldx++, pte++)
+                min_tables_address = min(min_tables_address, pde->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+                max_tables_address = max(max_tables_address, pde->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+                pte_t *pte = (pte_t *)phys2virt(pde->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+                for (uint32_t ldx = 0 ; ldx < MAPPING_TABLES_SIZE ; ldx++, pte++)
                 {
                     if (!pte->present) continue;
-                    if (pte->ignored)
-                    {
-                        //kprintk("pte(%p) already dumped.\n", pte);
-                        continue;
-                    }
-                    current_address->pte = ldx;
+                    virt_address->pte = ldx;
+                    if (verbosity == VM_DUMP_TABLES_DUPLICATES ||
+                        (!pte->ignored && verbosity == VM_DUMP_TABLES))
+                        dump_pte_decoded(pte, ldx);
                     pte->ignored = 1;
-                    //dump_pte_decoded(pte, ldx);
-                    if (previous_page_end == 0) previous_page_end = *page_start-1;
-                    if (previous_page_end+1 == *page_start)
+                    uint64_t new_page_phys = pte->page_phys_4k * PHYS_PAGE_GRANULARITY;
+                    uint64_t new_page_virt = *virt_addr64;
+                    if (((section_phys_start + section_size + PHYS_PAGE_GRANULARITY) == new_page_phys) &&
+                            ((section_virt_start + section_size + PHYS_PAGE_GRANULARITY) == new_page_virt))
                     {
                         /* contiguous block */
-                        previous_page_end = *page_start+0xfff;
+                        section_size += PHYS_PAGE_GRANULARITY;
                         continue;
                     }
-                    kprintk("Pages from 0x%016lx to 0x%016lx.\n", section_start, previous_page_end);
-                    section_start = *page_start;
-                    previous_page_end = *page_start+0xfff;
+                    if (section_size)
+                    {
+                        kprintk("Pages from 0x%016lx to 0x%016lx mapped from 0x%016lx to 0x%016lx -- section size 0x%x.\n",
+                            section_phys_start, section_phys_start + section_size,
+                            section_virt_start, section_virt_start + section_size, section_size
+                        );
+                    }
+                    section_phys_start = new_page_phys;
+                    section_virt_start = new_page_virt;
+                    section_size = 0;
                 }
             }
         }
     }
-    kprintk("Pages from 0x%016lx to 0x%016lx.\n", section_start, previous_page_end);
-    kprintk("PML4 ranges from 0x%016lx to 0x%016lx.\n", min_address, max_address);
+    /* last section */
+    kprintk("Pages from 0x%016lx to 0x%016lx mapped from 0x%016lx to 0x%016lx.\n",
+        section_phys_start, section_phys_start + section_size,
+        section_virt_start, section_virt_start + section_size);
+    // kprintk("Pages from 0x%016lx to 0x%016lx.\n",
+    //     section_phys_start, previous_page_end);
+    kprintk("PML4 tables ranges from 0x%016lx to 0x%016lx.\n", min_tables_address, max_tables_address);
 
     /* reset the ignored flags */
-    pml4e = (pml4e_t *)phys2virt(pcr3->pml4_phys_4k * 4 * KB);
-    for (uint32_t idx = 0 ; idx < 512 ; idx++, pml4e++)
+    pml4e = (pml4e_t *)phys2virt(pcr3->pml4_phys_4k * PHYS_PAGE_GRANULARITY);
+    for (uint32_t idx = 0 ; idx < MAPPING_TABLES_SIZE ; idx++, pml4e++)
     {
         pml4e->ignored = 0;
         if (!pml4e->present) continue;
-        pdpte_t *pdpte = (pdpte_t *)phys2virt(pml4e->pdpt_phys_4k * 4 * KB);
-        for (uint32_t jdx = 0 ; jdx < 512 ; jdx++, pdpte++)
+        pdpte_t *pdpte = (pdpte_t *)phys2virt(pml4e->pdpt_phys_4k * PHYS_PAGE_GRANULARITY);
+        for (uint32_t jdx = 0 ; jdx < MAPPING_TABLES_SIZE ; jdx++, pdpte++)
         {
             pdpte->ignored = 0;
             if (!pdpte->present) continue;
-            pde_t *pde = (pde_t *)phys2virt(pdpte->subt_phys_4k * 4 * KB);
-            for (uint32_t kdx = 0 ; kdx < 512 ; kdx++, pde++)
+            pde_t *pde = (pde_t *)phys2virt(pdpte->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+            for (uint32_t kdx = 0 ; kdx < MAPPING_TABLES_SIZE ; kdx++, pde++)
             {
                 pde->ignored = 0;
                 if (!pde->present) continue;
-                pte_t *pte = (pte_t *)phys2virt(pde->subt_phys_4k * 4 * KB);
-                for (uint32_t ldx = 0 ; ldx < 512 ; ldx++, pte++)
+                pte_t *pte = (pte_t *)phys2virt(pde->subt_phys_4k * PHYS_PAGE_GRANULARITY);
+                for (uint32_t ldx = 0 ; ldx < MAPPING_TABLES_SIZE ; ldx++, pte++)
                 {
                     pte->ignored = 0;
                 }
             }
         }
     }
-    /*uint64_t *raw_pml4 = (uint64_t*)pml4;
-    kprintk("pml4                 %p -- 0x%016x\n", pml4, *raw_pml4);
-    kprintk("pml4->pte            0%04x\n", pml4->pte);
-    kprintk("pml4->pde            0%04x\n", pml4->pde);
-    kprintk("pml4->pdpte          0%04x\n", pml4->pdpte);*/
     kprintk("End of virtual memory mapping\n");
 }
 
