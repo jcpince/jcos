@@ -110,9 +110,10 @@ extern "C" void kprintk (const char *fmt, ...)
     kstd::kout << printbuffer;
 }
 
-extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
+extern "C" void kmain(addr_t mbi, uint32_t bootloader_magic)
 {
     /* Shall be called early on to allow interrupts */
+    KIMultibootManager *mbmgr;
     KIVirtualMemoryManager *kvmem = GetVirtualMemoryManager();
     KIInterruptManager *kim = GetInterruptManager();
     kim->install_vector();
@@ -130,7 +131,7 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 
 	//while(dbg);
 
-	KIMultibootManager *mbmgr = kmmf.getMultibootMgr(bootloader_magic, (addr_t)mbi);
+    mbmgr = kmmf.getMultibootMgr(bootloader_magic, kvmem->phys2virt(mbi));
 	if (!mbmgr)
 	{
 		kprintk("Was not able to get a multi-boot manager with magic 0x%x\n", bootloader_magic);
@@ -160,8 +161,8 @@ extern "C" void kmain(uint32_t mbi, uint32_t bootloader_magic)
 		char *bootloadername = mbmgr->getBootloaderName();
 		char *commandline = mbmgr->getCommandLine();
 
-		kstd::kout << _L("Bootloader name: ") << bootloadername << kstd::endl;
-		kstd::kout << _L("Command line: ") << commandline << kstd::endl;
+		kprintk("Bootloader name: '%s'\n", bootloadername);
+		kprintk("Command line: '%s'\n", commandline);
 
 		free(bootloadername);
 		free(commandline);

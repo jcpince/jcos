@@ -6,9 +6,6 @@ extern const uint64_t KERNEL_VIRT_ADDR;
 extern const uint64_t KERNEL_PHYS_MASK;
 extern const uint64_t KERNEL_PHYS_ADDR;
 
-#define min(a, b) (a < b ? a : b)
-#define max(a, b) (a > b ? a : b)
-
 #define LINEAR_0_OFFSET ((uint64_t)&KERNEL_VIRT_ADDR)
 #define LINEAR_MASK     ((uint64_t)&KERNEL_PHYS_MASK)
 

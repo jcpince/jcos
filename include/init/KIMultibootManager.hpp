@@ -16,9 +16,9 @@ class KIMultibootManager
 private:
 	KIMultibootManager() {}
 public:
-	KIMultibootManager(addr_t multiboot_base) {}
+	KIMultibootManager(void* multiboot_base) {}
 	virtual ~KIMultibootManager() {}
-	
+
 	virtual kusable_memory_region_t *getMemoryRegions() = 0;
 	virtual char *getCommandLine() = 0;
 	virtual char *getBootloaderName() = 0;

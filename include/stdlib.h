@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+
 #define NULL ((void*)0)
 
 void kprintk (const char *fmt, ...);

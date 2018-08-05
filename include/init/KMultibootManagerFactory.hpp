@@ -14,7 +14,7 @@ private:
 	~KMultibootManagerFactory() {}
 
 public:
-	static KIMultibootManager *getMultibootMgr(uint32_t magic, addr_t mbi_address)
+	static KIMultibootManager *getMultibootMgr(uint32_t magic, void* mbi_address)
 	{
 		switch (magic)
 		{
