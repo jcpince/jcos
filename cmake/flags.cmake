@@ -10,10 +10,8 @@ append(CMAKE_C_FLAGS "-Wno-write-strings -fexceptions -nostdinc --sysroot")
 append(CMAKE_C_FLAGS "${CMAKE_CURRENT_SOURCE_DIR} -isystem=/include") #-fno-rtti -fno-exceptions
 append(CMAKE_C_FLAGS "-Wwrite-strings -Wcast-qual -fvisibility=hidden -fPIC")
 
-set(EARLYDBG OFF CACHE BOOLEAN OFF)
-if (EARLYDBG)
-    add_definitions(-DEARLYDBG=1)
-endif()
+set(EARLYDBG 0 CACHE STRING 0)
+add_definitions(-DEARLYDBG=${EARLYDBG})
 
 add_definitions(-DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED)
 add_definitions(-DENABLE_DECIMAL_BID_FORMAT -DHAVE_CC_TLS -DUSE_TLS -DHIDE_EXPORTS)
