@@ -100,7 +100,7 @@ activate_long_mode:
     mov %eax, %cr0
 
     /* Put EDI on the buffer reserved for PML4/PDP/PD and PT */
-    mov $(PML4_TABLE_OFFSET), %edi
+    mov $(phys_pml4_start), %edi
     /* Since we are doing a rep stosl, count should be bytes/4 */
     push %edi                               /* REP STOSD alters EDI */
     mov $(4*KB), %ecx
@@ -111,69 +111,74 @@ activate_long_mode:
 #if (EARLYDBG == 3)
 1:	jmp 1b
 #endif
-    /*
-      Maps 16MB phys addresses from 0x0--0x1000000 to 0x80000000--0x81000000
-        PML4 entry 0
-        PDPTE entry 2
-        PDE entries 0 to PTE_NB_TABLES-1
-        PTE_NB_TABLES PTE tables all entries counting up
 
-        VM tables are all 4KB aligned so their address can be put directly into
-        the tables.
-     */
-
-    /* Publish the PML4 address */
-    mov $(PML4_TABLE_OFFSET), %edi
+    /* 3. Load CR3 with the physical address of the PML4 */
     mov %edi, %cr3                          /* Point CR3 at the PML4. */
 
     /* Build Page Map Level 4 */
-    mov $(PML4_TABLE_OFFSET), %edi
+    /* Mapping of the linear addresses 0 -> 0x0 to the physical memory */
     lea PML4_TABLE_SIZE(%edi), %eax         /* Put the address of the Page Directory Pointer Table in to EAX */
     or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:0(%edi)                   /* Store the value of EAX as the first PML4 entry */
+    mov %eax, %es:(%edi)                    /* Store the value of EAX as the first PML4 entry */
+    mov %eax, (0x1FF*8)(%edi)               /* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
 
     /* Build the Page Directory Pointer */
-    mov $(PDPT_TABLE_OFFSET), %edi
-    lea PDPT_TABLE_SIZE(%edi), %eax         /* Put the address of the Page Directory in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
-    /* Mapping of the linear addresses 0 -> 0x80000000 to the physical memory */
-    /* Sets int index 2 of PDPT for address 0x80000000 */
-    mov %eax, %es:0x10(%edi)                /* Store the value of EAX as the third PDPT entry */
-    mov %eax, %es:0x0(%edi)                /* Store the value of EAX as the third PDPT entry */
+    lea 0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x1000(%edi)		/* Store the value of EAX as the first PDPT entry */
+    mov %eax, (0x1FE*8+0x1000)(%edi)	/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
+    mov %eax, (0x2*8+0x1000)(%edi)		/* Set the same ptr for the addresses 0x0000000080100000 */
 
     /* Build the Page Directory */
-    mov $(PDE_TABLE_OFFSET), %edi
-    lea PDE_TABLE_SIZE(%edi), %eax          /* Put the address of the first Page Table in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
-    mov $(PTE_NB_TABLES), %ecx
-    mov $(0), %ebx
-set_pdes:
-    add $(PTE_TABLE_SIZE), %eax
-    mov %eax, %es:0x0(%edi)
-    mov %ebx, %es:0x4(%edi)
-    add $(VM_TABLE_ENTRY_SIZE), %edi
-    dec %ecx
-    cmp %ecx, %ebx
-    jne set_pdes
+    lea 0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2000(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2000)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    lea 0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2008(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2008)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    lea 0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
+    mov %eax, %es:0x2010(%edi)		/* Store the value of EAX as the first PD entry */
+    mov %eax, (0x8*8+0x2010)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
 
 #if (EARLYDBG == 4)
 1:	jmp 1b
 #endif
 
-    /* Build the page tables */
-    mov $(PTE_TABLE0_OFFSET), %edi
-    mov $(PAGE_PRESENT | PAGE_WRITE), %eax
-    mov $(0), %ebx
-    mov $(PTE_TABLE0_OFFSET + PTE_NB_TABLES * PTE_TABLE_SIZE), %ecx
-set_ptes:
-    mov %eax, %es:(%edi)
-    mov %ebx, %es:0x4(%edi)
-    add $(PAGESZ), %eax
-    add $(VM_TABLE_ENTRY_SIZE), %edi
-    cmp %ecx, %edi
-    jne set_ptes
+	/* Build the page table */
+	push %edi				/* Save EDI so we can set CR3 later on */
+	lea 0x3000(%edi), %edi			/* Point EDI to the page table */
+	mov $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x0000 */
+1:	mov %eax, %es:(%edi)
+	add $(PAGESZ), %eax
+	add $(8), %edi
+	cmp $(2*MB), %eax
+	jb 1b
+	pop %edi				/* Restore EDI which contains PML4 base address */
 
-#if (EARLYDBG == 5)
+	push %edi				/* Save EDI so we can set CR3 later on */
+	lea 0x4000(%edi), %edi			/* Point EDI to the page table */
+	mov $(0x200000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
+1:	mov %eax, %es:(%edi)
+	add $(PAGESZ), %eax
+	add $(8), %edi
+	cmp $(4*MB), %eax
+	jb 1b
+	pop %edi				/* Restore EDI which contains PML4 base address */
+
+	push %edi				/* Save EDI so we can set CR3 later on */
+	lea 0x5000(%edi), %edi			/* Point EDI to the page table */
+	mov $(0x400000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
+1:	mov %eax, %es:(%edi)
+	add $(PAGESZ), %eax
+	add $(8), %edi
+	cmp $(6*MB), %eax
+	jb 1b
+	pop %edi				/* Restore EDI which contains PML4 base address */
+
+#if 1 // (EARLYDBG == 5)
 1:	jmp 1b
 #endif
 
@@ -239,7 +244,6 @@ LongMode:
     mov %ax, %ss
 
     /* callq map_virtual_memory64 */
-/*1:  jmp 1b*/
 
     /* jmp and not push so that the stack is not modified */
     movabsq $kernel_start64, %rax

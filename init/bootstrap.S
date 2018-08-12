@@ -3,6 +3,18 @@
 
 #include "asm_defs.h"
 
+#define clear_vtable(table_offset)  \
+    mov $(table_offset), %edi;      \
+    push %edi;                      \
+    push %eax;                      \
+    push %ecx;                      \
+    mov $(4*KB), %ecx;              \
+    xor %eax, %eax;                 \
+    rep stosl;                      \
+    pop %edi;                       \
+    pop %eax;                       \
+    pop %ecx;
+
 /* Multiboot2 header */
 MULTIBOOT2_HEADER:
     .align 4
@@ -100,134 +112,130 @@ activate_long_mode:
     mov %eax, %cr0
 
     /* Put EDI on the buffer reserved for PML4/PDP/PD and PT */
-    mov $(phys_pml4_start), %edi
-    /* Since we are doing a rep stosl, count should be bytes/4 */
-    push %edi                               /* REP STOSD alters EDI */
-    mov $(4*KB), %ecx
-    xor %eax, %eax
-    rep stosl                               /* clear the PML4 */
-    pop %edi                                /* Get EDI back with the address of PML4 */
+
 
 #if (EARLYDBG == 3)
 1:	jmp 1b
 #endif
+    /*
+      Maps 16MB phys addresses from 0x0--0x1000000 to 0x80000000--0x81000000
+        PML4 entry 0
+        PDPTE entry 2
+        PDE entries 0 to PTE_NB_TABLES-1
+        PTE_NB_TABLES PTE tables all entries counting up
 
-    /* 3. Load CR3 with the physical address of the PML4 */
+        VM tables are all 4KB aligned so their address can be put directly into
+        the tables.
+     */
+
+    /* Publish the PML4 address */
+    mov $(PML4_TABLE_OFFSET), %edi
     mov %edi, %cr3                          /* Point CR3 at the PML4. */
 
     /* Build Page Map Level 4 */
-    /* Mapping of the linear addresses 0 -> 0x0 to the physical memory */
+    clear_vtable(PML4_TABLE_OFFSET)
+    mov $(PML4_TABLE_OFFSET), %edi
     lea PML4_TABLE_SIZE(%edi), %eax         /* Put the address of the Page Directory Pointer Table in to EAX */
     or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:(%edi)                    /* Store the value of EAX as the first PML4 entry */
-    mov %eax, (0x1FF*8)(%edi)               /* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
+    mov %eax, %es:((VM_TABLE_ENTRIES-1)*8)(%edi)/* Store the value of EAX as the first PML4 entry */
+    mov %eax, %es:0x0(%edi)                   /* Store the value of EAX as the first PML4 entry */
 
     /* Build the Page Directory Pointer */
-    lea 0x2000(%edi), %eax		/* Put the address of the Page Directory in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:0x1000(%edi)		/* Store the value of EAX as the first PDPT entry */
-    mov %eax, (0x1FE*8+0x1000)(%edi)	/* Set the same ptr for the addresses 0xFFFFFFFF80100000 */
-    mov %eax, (0x2*8+0x1000)(%edi)		/* Set the same ptr for the addresses 0x0000000080100000 */
+    clear_vtable(PDPT_TABLE_OFFSET)
+    mov $(PDPT_TABLE_OFFSET), %edi
+    lea PDPT_TABLE_SIZE(%edi), %eax         /* Put the address of the Page Directory in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
+    /* Mapping of the virtual addresses from 0 to the physical memory 0 */
+    /* Sets int index 510 of PDPT for virtual addresses from 0xffffffff80000000 */
+    /* NOTE: since we're using the same tables, enabling both entries in PML4 and PDPTE will
+     * create mappings for 0x0, 0xffffffff80000000 but also 0x7f80000000 and 0x0000ff8000000000...
+     */
+    mov %eax, %es:((VM_TABLE_ENTRIES-2)*8)(%edi)/* Store the value of EAX as the third PDPT entry */
+    mov %eax, %es:0x0(%edi)                 /* Store the value of EAX as the third PDPT entry */
 
     /* Build the Page Directory */
-    lea 0x3000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:0x2000(%edi)		/* Store the value of EAX as the first PD entry */
-    mov %eax, (0x8*8+0x2000)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    lea 0x4000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:0x2008(%edi)		/* Store the value of EAX as the first PD entry */
-    mov %eax, (0x8*8+0x2008)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
-    lea 0x5000(%edi), %eax		/* Put the address of the Page Table in to EAX */
-    or $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Or EAX with the flags - present flag, writable flag */
-    mov %eax, %es:0x2010(%edi)		/* Store the value of EAX as the first PD entry */
-    mov %eax, (0x8*8+0x2010)(%edi)		/* Set the same ptr for the addresses 0x0000000001100000 */
+    clear_vtable(PDE_TABLE_OFFSET)
+    mov $(PDE_TABLE_OFFSET), %edi
+    lea PDE_TABLE_SIZE(%edi), %eax          /* Put the address of the first Page Table in to EAX */
+    or $(PAGE_PRESENT | PAGE_WRITE), %eax   /* Or EAX with the flags - present flag, writable flag */
+    mov $(PTE_NB_TABLES), %ecx
+    mov $(0), %ebx
+set_pdes:
+    mov %eax, %es:0x0(%edi)
+    mov %ebx, %es:0x4(%edi)
+    add $(PTE_TABLE_SIZE), %eax
+    add $(VM_TABLE_ENTRY_SIZE), %edi
+    dec %ecx
+    cmp %ecx, %ebx
+    jne set_pdes
 
 #if (EARLYDBG == 4)
 1:	jmp 1b
 #endif
 
-	/* Build the page table */
-	push %edi				/* Save EDI so we can set CR3 later on */
-	lea 0x3000(%edi), %edi			/* Point EDI to the page table */
-	mov $(PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x0000 */
-1:	mov %eax, %es:(%edi)
-	add $(PAGESZ), %eax
-	add $(8), %edi
-	cmp $(2*MB), %eax
-	jb 1b
-	pop %edi				/* Restore EDI which contains PML4 base address */
-
-	push %edi				/* Save EDI so we can set CR3 later on */
-	lea 0x4000(%edi), %edi			/* Point EDI to the page table */
-	mov $(0x200000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
-1:	mov %eax, %es:(%edi)
-	add $(PAGESZ), %eax
-	add $(8), %edi
-	cmp $(4*MB), %eax
-	jb 1b
-	pop %edi				/* Restore EDI which contains PML4 base address */
-
-	push %edi				/* Save EDI so we can set CR3 later on */
-	lea 0x5000(%edi), %edi			/* Point EDI to the page table */
-	mov $(0x400000 | PAGE_PRESENT | PAGE_WRITE), %eax	/* Move the flags into EAX - and point it to 0x200000 */
-1:	mov %eax, %es:(%edi)
-	add $(PAGESZ), %eax
-	add $(8), %edi
-	cmp $(6*MB), %eax
-	jb 1b
-	pop %edi				/* Restore EDI which contains PML4 base address */
+    /* Build the page tables */
+    mov $(PTE_TABLE0_OFFSET), %edi
+    mov $(PAGE_PRESENT | PAGE_WRITE), %eax
+    mov $(0), %ebx
+    mov $(PTE_TABLE0_OFFSET + PTE_NB_TABLES * PTE_TABLE_SIZE + PTE_TABLE_SIZE), %ecx
+set_ptes:
+    mov %eax, %es:(%edi)
+    mov %ebx, %es:0x4(%edi)
+    add $(PAGESZ), %eax
+    add $(VM_TABLE_ENTRY_SIZE), %edi
+    cmp %ecx, %edi
+    jne set_ptes
 
 #if (EARLYDBG == 5)
 1:	jmp 1b
 #endif
 
-	/* Disable PIC 16 interrupts */
-	mov $0xff, %al
-	out %al, $0xA1
-	mov $0xff, %al
-	out %al, $0x21
+    /* Disable PIC 16 interrupts */
+    mov $0xff, %al
+    out %al, $0xA1
+    mov $0xff, %al
+    out %al, $0x21
 
-	/* 2. Set the PAE enable bit in CR4					*/
-	/* Enter long mode. */
-	mov %cr4, %eax
-	or $0xA0, %eax			/* Set the PAE and PGE bits.*/
-	mov %eax, %cr4
+    /* 2. Set the PAE enable bit in CR4 */
+    /* Enter long mode. */
+    mov %cr4, %eax
+    or $0xA0, %eax                             /* Set the PAE and PGE bits.*/
+    mov %eax, %cr4
 
-	/* 4. Enable long mode by setting the EFER.LME flag in MSR 0xC0000080	*/
-	mov $0xC0000080, %ecx
-	rdmsr
-	or $0x00000100, %eax
-	wrmsr				/* Set the LME bit */
+    /* 4. Enable long mode by setting the EFER.LME flag in MSR 0xC0000080	*/
+    mov $0xC0000080, %ecx
+    rdmsr
+    or $0x00000100, %eax
+    wrmsr                                      /* Set the LME bit */
 
-	/* 5. Enable paging							*/
-	mov %cr0, %eax			/* Activate long mode */
-	or $0x80000000, %eax		/* by enabling paging */
-	mov %eax, %cr0
+    /* 5. Enable paging */
+    mov %cr0, %eax                             /* Activate long mode */
+    or $0x80000000, %eax                       /* by enabling paging */
+    mov %eax, %cr0
 
-	/* Jump to 64-bits mode with a long jump (or lret) */
-	lgdt GDT.Pointer
-	ljmpl $0x0008, $LongMode
+    /* Jump to 64-bits mode with a long jump (or lret) */
+    lgdt GDT64.Pointer
+    ljmpl $0x0008, $LongMode
 
 .align 4
-GDT:
-GDT.NULL:
-	.quad 0x0
-GDT.64bits.kcode:
-	.quad 0x00AF9A000000FFFF
-GDT.64bits.kdata:
-	.quad 0x00CF92000000FFFF
-GDT.64bits.kstack:
-	.quad 0x00CF92000000FFFF
-GDT.64bits.ucode:
-	.quad 0x00CFFA000000FFFF
-GDT.64bits.udata:
-	.quad 0x00CFF2000000FFFF
+GDT64:
+GDT64.NULL:
+    .quad 0x0
+GDT64.64bits.kcode:
+    .quad 0x00AF9A000000FFFF
+GDT64.64bits.kdata:
+    .quad 0x00CF92000000FFFF
+GDT64.64bits.kstack:
+    .quad 0x00CF92000000FFFF
+GDT64.64bits.ucode:
+    .quad 0x00CFFA000000FFFF
+GDT64.64bits.udata:
+    .quad 0x00CFF2000000FFFF
 .align 4
-	.word 0
-GDT.Pointer:
-	.word GDT.Pointer - GDT - 1	/* lenght on 16 bits */
-	.quad GDT			/* pointer to the data on 64 bits */
+    .word 0
+GDT64.Pointer:
+    .word GDT64.Pointer - GDT64 - 1            /* lenght on 16 bits */
+    .quad GDT64                                /* pointer to the data on 64 bits */
 
 .code64
 .align 4
@@ -243,7 +251,7 @@ LongMode:
     mov $0x0018, %ax
     mov %ax, %ss
 
-    /* callq map_virtual_memory64 */
+    /*1:  jmp 1b*/
 
     /* jmp and not push so that the stack is not modified */
     movabsq $kernel_start64, %rax
@@ -252,43 +260,5 @@ LongMode:
     /* Should never arrive here but just in case */
     cli
 hang:
-    hlt					# halt machine should kernel return
+    hlt                                     /* halt machine should kernel return */
     jmp   hang
-
-#if 0
-map_virtual_memory64:
-1:	jmp 1b
-	mov $(phys_pml4_start), %rdi
-	/* Build Page Map Level 4 for the virtual memory used by our kernel */
-	/*
-		PML4+0x1000: Physical PDPT
-		PML4+0x2000: Physical PDT
-		PML4+0x3000: Physical PT
-
-
-		PML4+0x6000: Virtual PDPT
-		PML4+0x7000: Virtual PDT
-		PML4+0x8000: Virtual PT
-	*/
-	/* Mapping of the linear addresses 0x8000000000 -> 0x0000FFFFFFFFFFFF(most significant
-	bit propagated so virtually 0xFFFFFFFFFFFFFFFF) to the physical memory */
-    	lea 0x6000(%rdi), %rax		/* Put the address of the Page Directory Pointer Table in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %rax	/* Or EAX with the flags - present flag, writable flag */
-    	movabsq $(fake_KERNEL_VIRT_ADDR), %rbx
-    	shr $(PML4_BIT0_OFF), %rbx
-    	and $(PML4_MASK), %rbx
-	add %rbx, %rdi
-    	mov %rax, (%rdi)			/* Store the value of EAX as the first PML4 entry */
-	sub %rbx, %rdi
-
-	/* Build the Page Directory Pointer */
-    	lea 0x2000(%rdi), %rax		/* Put the address of the Page Directory in to EAX */
-    	or $(PAGE_PRESENT | PAGE_WRITE), %rax	/* Or EAX with the flags - present flag, writable flag */
-    	movabsq $(fake_KERNEL_VIRT_ADDR), %rbx
-    	shr $(PDPT_BIT0_OFF), %rbx
-    	and $(PDPT_MASK), %rbx
-	add %rbx, %rdi
-	add $0x6000, %rdi
-    	mov %rax, (%rdi)			/* Store the value of EAX as the first PML4 entry */
-	retq
-#endif

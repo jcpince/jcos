@@ -155,7 +155,8 @@ void KVirtualMemoryManager::dump_virtual_mapping(vmap_verbosity_t verbosity)
                     {
                         kprintk("Pages from 0x%016lx to 0x%016lx mapped from 0x%016lx to 0x%016lx -- section size 0x%x.\n",
                             section_phys_start, section_phys_start + section_size,
-                            section_virt_start, section_virt_start + section_size, section_size
+                            section_virt_start, section_virt_start + section_size,
+                            section_size + PHYS_PAGE_GRANULARITY
                         );
                     }
                     section_phys_start = new_page_phys;
@@ -166,9 +167,10 @@ void KVirtualMemoryManager::dump_virtual_mapping(vmap_verbosity_t verbosity)
         }
     }
     /* last section */
-    kprintk("Pages from 0x%016lx to 0x%016lx mapped from 0x%016lx to 0x%016lx.\n",
+    kprintk("Pages from 0x%016lx to 0x%016lx mapped from 0x%016lx to 0x%016lx -- section size 0x%x.\n",
         section_phys_start, section_phys_start + section_size,
-        section_virt_start, section_virt_start + section_size);
+        section_virt_start, section_virt_start + section_size,
+        section_size + PHYS_PAGE_GRANULARITY);
     // kprintk("Pages from 0x%016lx to 0x%016lx.\n",
     //     section_phys_start, previous_page_end);
     kprintk("PML4 tables ranges from 0x%016lx to 0x%016lx.\n", min_tables_address, max_tables_address);
